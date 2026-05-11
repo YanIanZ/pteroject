@@ -1117,6 +1117,9 @@ build_frontend() {
     else
         yarn install || { error "yarn install failed"; exit 1; }
     fi
+    # Node 17+ + OpenSSL 3 breaks webpack 4 (ERR_OSSL_EVP_UNSUPPORTED).
+    # Pterodactyl v1.11.x uses webpack 4 — force legacy OpenSSL provider.
+    export NODE_OPTIONS="--openssl-legacy-provider ${NODE_OPTIONS:-}"
     YARN_IGNORE_ENGINES=true yarn run build:production || { error "Frontend build failed"; exit 1; }
 
     # Verify build artifacts exist
