@@ -182,10 +182,10 @@ configure_components() {
 
     output ""
     info "Selected:"
-    [ "$INSTALL_THEME" -eq 1 ] && echo "  ${GREEN}✓${NC} Unix Theme v2"
-    [ "$INSTALL_BILLING" -eq 1 ] && echo "  ${GREEN}✓${NC} Billing System"
-    [ "$INSTALL_PLAYERS" -eq 1 ] && echo "  ${GREEN}✓${NC} Player List"
-    [ "$INSTALL_SORT" -eq 1 ] && echo "  ${GREEN}✓${NC} Custom Server Sort"
+    [ "$INSTALL_THEME" -eq 1 ] && output "  ${GREEN}✓${NC} Unix Theme v2"
+    [ "$INSTALL_BILLING" -eq 1 ] && output "  ${GREEN}✓${NC} Billing System"
+    [ "$INSTALL_PLAYERS" -eq 1 ] && output "  ${GREEN}✓${NC} Player List"
+    [ "$INSTALL_SORT" -eq 1 ] && output "  ${GREEN}✓${NC} Custom Server Sort"
     output ""
 }
 
@@ -529,25 +529,19 @@ run_migrations() {
     info "Running migrations..."
     cd "$PTERODACTYL_PATH"
 
-    if php artisan migrate --force &> /dev/null; then
-        success "Migrations completed"
-    else
-        warning "Migrations may have failed, check logs"
-    fi
-
+    php artisan migrate --force || { error "Migrations failed"; exit 1; }
+    success "Migrations completed"
     output ""
 }
 
 build_frontend() {
-    info "Building frontend assets..."
+    info "Building frontend assets (this may take a few minutes)..."
     cd "$PTERODACTYL_PATH"
 
     if [ -f "package.json" ]; then
-        if yarn install &> /dev/null && yarn run build:production &> /dev/null; then
-            success "Frontend built"
-        else
-            warning "Frontend build may have failed, check logs"
-        fi
+        yarn install || { error "yarn install failed"; exit 1; }
+        yarn run build:production || { error "Frontend build failed"; exit 1; }
+        success "Frontend built"
     else
         warning "package.json not found, skipping frontend build"
     fi
@@ -620,6 +614,7 @@ run_ui() {
             echo -e "${GREEN}║    Installation Complete! ✓               ║${NC}"
             echo -e "${GREEN}╚════════════════════════════════════════════╝${NC}"
             output ""
+            verify_install
             show_completion_summary
             ;;
 
@@ -696,20 +691,65 @@ run_ui() {
 }
 
 show_completion_summary() {
-    echo "Next steps:"
-    echo ""
-    echo "  1. Access admin panel: ${CYAN}https://your-domain/admin${NC}"
-    echo ""
-    echo "  2. Verify Sourby theme is active"
-    echo ""
-    echo "  3. Manage addons:"
-    [ "$INSTALL_BILLING" -eq 1 ] && echo "     ${CYAN}Shop Settings:${NC}  /admin/shop/settings"
-    [ "$INSTALL_PLAYERS" -eq 1 ] && echo "     ${CYAN}Player Counter:${NC} /admin/players"
-    echo ""
-    echo "  Backup location: ${CYAN}$BACKUP_BASE_DIR/latest${NC}"
-    echo ""
-    echo "  Docs: ${CYAN}SOURBY_INTEGRATION.md${NC}"
-    echo ""
+    output "Next steps:"
+    output ""
+    output "  1. Access admin panel: ${CYAN}https://your-domain/admin${NC}"
+    output ""
+    output "  2. Verify Sourby theme is active"
+    output ""
+    output "  3. Manage addons:"
+    [ "$INSTALL_BILLING" -eq 1 ] && output "     ${CYAN}Shop Settings:${NC}  /admin/shop/settings"
+    [ "$INSTALL_PLAYERS" -eq 1 ] && output "     ${CYAN}Player Counter:${NC} /admin/players"
+    output ""
+    output "  Backup location: ${CYAN}$BACKUP_BASE_DIR/latest${NC}"
+    output ""
+    output "  Docs: ${CYAN}SOURBY_INTEGRATION.md${NC}"
+    output ""
+}
+
+# Verify installation
+verify_install() {
+    local ok=1
+
+    output ""
+    divider
+    info "Verifying installation..."
+
+    if [ -f "$PTERODACTYL_PATH/config/sourby.php" ]; then
+        success "config/sourby.php"
+    else
+        error "config/sourby.php — config not copied"
+        ok=0
+    fi
+
+    if [ -d "$PTERODACTYL_PATH/public/themes/sourby" ]; then
+        success "public/themes/sourby (theme assets)"
+    else
+        error "public/themes/sourby — theme assets missing"
+        ok=0
+    fi
+
+    if [ -f "$PTERODACTYL_PATH/routes/sourby.php" ]; then
+        success "routes/sourby.php"
+    else
+        error "routes/sourby.php — routes not copied"
+        ok=0
+    fi
+
+    if [ -f "$PTERODACTYL_PATH/app/Models/SourbySetting.php" ]; then
+        success "app/Models/SourbySetting.php"
+    else
+        error "app/Models/SourbySetting.php — model not copied"
+        ok=0
+    fi
+
+    if [ "$ok" -eq 0 ]; then
+        warning "Some files are missing. Check that PTERODACTYL_PATH is correct: $PTERODACTYL_PATH"
+    else
+        success "All Sourby files verified"
+    fi
+    divider
+    output ""
 }
 
 export -f output error success info warning welcome divider
@@ -719,4 +759,4 @@ export -f check_root check_dependencies validate_pterodactyl
 export -f ensure_backup_dir create_backup list_backups restore_from_backup
 export -f download_sourby install_addons install_dependencies
 export -f update_env set_env register_provider run_migrations build_frontend clear_caches
-export -f update_lib_source run_ui show_completion_summary
+export -f update_lib_source run_ui show_completion_summary verify_install
