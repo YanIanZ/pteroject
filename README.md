@@ -18,66 +18,48 @@ Sourby is a rebranded and enhanced version of the Pterodactyl Game Server Panel 
 - MySQL/MariaDB
 - Node.js 16+ & Yarn
 - Composer
-- curl, unzip, git
+- curl, unzip
 
-### Recommended: Unified Installer (All-in-One)
-
-**One script for everything: installation, configuration, backup/restore, and management:**
+### Quick Install (Recommended)
 
 ```bash
-# Curl (auto-installs everything)
-curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-installer.sh | sudo bash
+# Remote (downloads + runs in one command)
+curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/install.sh | sudo bash
 
-# Or locally (interactive menu)
-sudo ./sourby-installer.sh
+# Local (clone repo first, then run)
+sudo ./install.sh
 ```
 
-**Local mode features:**
-- ✓ Interactive menu: Install / Uninstall / Reconfigure / Backup History
-- ✓ Choose which addons to install (Unix Theme, Billing, Player List, Custom Sort)
-- ✓ Complete PayPal setup (Client ID, Secret, mode selection)
-- ✓ Stripe integration setup (optional)
-- ✓ Theme customization (app name, logo, favicon, background)
-- ✓ Automatic backup before any changes
-- ✓ One-command restore from backup
-- ✓ Dependency installation with user prompt
+### Interactive Menu
 
-**Curl mode features:**
-- ✓ Full automated installation
-- ✓ Installs all components by default
-- ✓ Auto-configures PayPal/Stripe with defaults
-- ✓ Automatic backup and setup
-
-### Manual Installation (Alternative)
-
-1. Copy addon files to your Pterodactyl installation:
-```bash
-cp -r Unix\ Theme\ v2/pterodactyl/* /var/www/pterodactyl/
-cp -r billing-system-v1x-v143/PanelFiles/* /var/www/pterodactyl/
-cp -r Player\ List\ \&\ Counter\ 1.0/PanelFiles/* /var/www/pterodactyl/
-cp -r custom-server-sort-v103/* /var/www/pterodactyl/
+```
+  [0]  Install Sourby (all addons + theme)
+  [1]  Select components to install
+  [2]  Update Sourby from GitHub
+  [3]  Uninstall Sourby (restore backup)
+  [4]  Create backup
+  [5]  Restore from backup
+  [6]  View backup history
+  [7]  Exit
 ```
 
-2. Register service providers in `bootstrap/app.php` or `config/app.php`:
-```php
-Pterodactyl\Providers\SourbyThemeServiceProvider::class,
-```
+### Features
+- Numbered interactive menu with input validation
+- Auto-downloads `lib/lib.sh` when running remotely via curl pipe
+- Automatic backup before every install/update
+- Component selection (choose which addons to install)
+- PayPal/Stripe configuration wizard
+- Theme customization (app name, logo, favicon, background)
+- One-command restore from backup
+- Dependency installation with user prompt
+- Piped mode support: `curl ... | sudo bash` auto-installs everything
 
-3. Run migrations:
-```bash
-php artisan migrate
-```
+### Script Structure
 
-4. Build frontend:
-```bash
-yarn install
-yarn run build:production
 ```
-
-5. Clear caches:
-```bash
-php artisan cache:clear
-php artisan view:clear
+install.sh         Main entry point (menu + dispatcher)
+lib/
+  lib.sh           Shared library (logging, checks, install, backup, config)
 ```
 
 ## Configuration
@@ -94,11 +76,8 @@ SOURBY_CUSTOM_SORT_ENABLED=true
 
 ## Installation Scripts
 
-- `sourby-manager.sh` - Comprehensive manager with install/uninstall and backup/restore (RECOMMENDED)
-- `install-sourby.sh` - Standalone installation script (curl-downloadable)
-- `install.sh` - Local installation script
-- `INSTALL.md` - Detailed installation guide with manual steps
-- `QUICKSTART.md` - 5-minute quick start guide
+- `install.sh` - Unified installer with interactive menu (curl-pipeable)
+- `lib/lib.sh` - Shared library (logging, validation, backup, install, config)
 
 ## Documentation
 
