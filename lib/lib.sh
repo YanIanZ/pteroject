@@ -560,12 +560,14 @@ download_sourby() {
     local download_url="https://github.com/$GITHUB_REPO/archive/refs/heads/$GITHUB_BRANCH.zip"
     info "Repository: $GITHUB_REPO ($GITHUB_BRANCH)"
 
-    if ! curl -fsSL "$download_url" -o sourby.zip; then
+    if ! curl -fL --progress-bar "$download_url" -o sourby.zip; then
         error "Download failed"
         exit 1
     fi
 
-    success "Downloaded"
+    local zip_size
+    zip_size=$(du -h sourby.zip 2>/dev/null | awk '{print $1}')
+    success "Downloaded ($zip_size)"
 
     info "Extracting..."
     unzip -oq sourby.zip
@@ -584,22 +586,44 @@ download_sourby() {
 
 install_panel_base() {
     local panel_src="$DOWNLOAD_DIR/panel-upstream"
-    local panel_repo="${PANEL_UPSTREAM_REPO:-https://github.com/pterodactyl/panel.git}"
-    # Pterodactyl LTS = v1.11.11 (Laravel 10) — matches what theme/addons target
-    local panel_ref="${PANEL_UPSTREAM_REF:-v1.11.11}"
+    local panel_tar="$DOWNLOAD_DIR/panel.tar.gz"
+    # Latest stable release (NOT canary). Override with PANEL_RELEASE_URL.
+    local panel_url="${PANEL_RELEASE_URL:-https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz}"
 
-    info "Fetching latest Pterodactyl panel base (${panel_repo} @ ${panel_ref})..."
+    info "Downloading latest Pterodactyl panel release tarball..."
+    info "URL: $panel_url"
 
-    rm -rf "$panel_src"
-    if ! git clone --depth 1 --branch "$panel_ref" "$panel_repo" "$panel_src" 2>&1 | tail -3; then
-        error "Failed to clone upstream panel ($panel_repo @ $panel_ref)"
-        warning "Set PANEL_UPSTREAM_REF to a valid tag/branch and retry"
+    rm -rf "$panel_src" "$panel_tar"
+    mkdir -p "$panel_src"
+
+    # curl -# shows a progress bar; -L follows GitHub redirects; --fail = non-zero on HTTP error
+    if ! curl -fL --progress-bar -o "$panel_tar" "$panel_url"; then
+        error "Failed to download panel tarball from $panel_url"
         exit 1
     fi
 
+    local tar_size
+    tar_size=$(du -h "$panel_tar" 2>/dev/null | awk '{print $1}')
+    success "Downloaded ($tar_size)"
+
+    info "Extracting panel.tar.gz..."
+    # Show file count progress via pv if available, else plain tar
+    if command -v pv >/dev/null 2>&1; then
+        pv "$panel_tar" | tar -xz -C "$panel_src" || { error "Extraction failed"; exit 1; }
+    else
+        tar -xzf "$panel_tar" -C "$panel_src" || { error "Extraction failed"; exit 1; }
+    fi
+    success "Extracted"
+
     info "Syncing panel base into $PTERODACTYL_PATH (preserving .env, storage, user data)..."
 
-    rsync -a \
+    # Progress: rsync --info=progress2 shows percent. Fall back to plain rsync on old versions.
+    local rsync_progress_flag=""
+    if rsync --info=progress2 --version >/dev/null 2>&1 && rsync --help 2>&1 | grep -q "info=progress2"; then
+        rsync_progress_flag="--info=progress2"
+    fi
+
+    rsync -a $rsync_progress_flag \
         --exclude='.env' \
         --exclude='.env.*' \
         --exclude='.git' \
@@ -616,7 +640,7 @@ install_panel_base() {
         --exclude='public/hot' \
         "$panel_src/" "$PTERODACTYL_PATH/" || { error "Panel base sync failed"; exit 1; }
 
-    success "Panel base synced from $panel_ref"
+    success "Panel base synced from latest release"
     output ""
 }
 
