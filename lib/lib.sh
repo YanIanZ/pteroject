@@ -583,20 +583,26 @@ download_sourby() {
 # ============================================================================
 
 install_panel_base() {
-    if [ ! -d "$EXTRACTED_DIR/panel" ]; then
-        warning "panel/ folder missing in repo — skipping base panel sync"
-        return 0
+    local panel_src="$DOWNLOAD_DIR/panel-upstream"
+    local panel_repo="${PANEL_UPSTREAM_REPO:-https://github.com/pterodactyl/panel.git}"
+    local panel_ref="${PANEL_UPSTREAM_REF:-v1.11.11}"
+
+    info "Fetching latest Pterodactyl panel base (${panel_repo} @ ${panel_ref})..."
+
+    rm -rf "$panel_src"
+    if ! git clone --depth 1 --branch "$panel_ref" "$panel_repo" "$panel_src" 2>&1 | tail -3; then
+        error "Failed to clone upstream panel ($panel_repo @ $panel_ref)"
+        warning "Set PANEL_UPSTREAM_REF to a valid tag/branch and retry"
+        exit 1
     fi
 
-    info "Syncing latest Pterodactyl panel base from panel/ ..."
+    info "Syncing panel base into $PTERODACTYL_PATH (preserving .env, storage, user data)..."
 
-    # Preserve user data: .env, storage/, database/database.sqlite if exists
-    local panel_src="$EXTRACTED_DIR/panel"
-
-    # rsync everything except runtime/user-state paths
     rsync -a \
         --exclude='.env' \
         --exclude='.env.*' \
+        --exclude='.git' \
+        --exclude='.github' \
         --exclude='storage/logs/' \
         --exclude='storage/framework/cache/' \
         --exclude='storage/framework/sessions/' \
@@ -609,7 +615,7 @@ install_panel_base() {
         --exclude='public/hot' \
         "$panel_src/" "$PTERODACTYL_PATH/" || { error "Panel base sync failed"; exit 1; }
 
-    success "Panel base synced"
+    success "Panel base synced from $panel_ref"
     output ""
 }
 
@@ -622,8 +628,14 @@ install_addons() {
         exit 1
     fi
 
-    # Always sync panel base first so theme/addons overlay clean latest panel
-    install_panel_base
+    # Optionally sync panel base first so theme/addons overlay clean latest panel
+    if [ "${SYNC_PANEL_BASE:-1}" -eq 1 ]; then
+        if read_yn "Sync latest Pterodactyl panel base before installing addons? (recommended for broken/missing CSS)" 1; then
+            install_panel_base
+        else
+            info "Skipping panel base sync — overlaying on existing panel"
+        fi
+    fi
 
     info "Installing selected components (from $EXTRACTED_DIR)..."
     output ""
