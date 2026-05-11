@@ -13,6 +13,13 @@ GITHUB_REPO="YanIanZ/pteroject"
 GITHUB_BRANCH="${GITHUB_SOURCE:-main}"
 DOWNLOAD_DIR="/tmp/sourby-installer"
 
+# Payment config (set during wizard)
+PAYPAL_CLIENT_ID=""
+PAYPAL_CLIENT_SECRET=""
+PAYPAL_MODE="sandbox"
+STRIPE_KEY=""
+STRIPE_SECRET=""
+
 # Detected flags
 INSTALL_THEME=1
 INSTALL_BILLING=1
@@ -196,6 +203,53 @@ build_component_string() {
     [ "$INSTALL_PLAYERS" -eq 1 ] && s="$s players"
     [ "$INSTALL_SORT" -eq 1 ] && s="$s sort"
     echo "${s# }"
+}
+
+# ============================================================================
+# PAYMENT GATEWAY CONFIGURATION
+# ============================================================================
+
+configure_payments() {
+    output ""
+    divider
+    output ""
+    output "  ${CYAN}Payment Gateway Setup${NC}"
+    output ""
+
+    # PayPal
+    echo -n "* PayPal mode (sandbox/live) [sandbox]: " >/dev/tty
+    read_input PAYPAL_MODE "sandbox"
+
+    echo -n "* PayPal Client ID: " >/dev/tty
+    read_input PAYPAL_CLIENT_ID ""
+
+    echo -n "* PayPal Client Secret: " >/dev/tty
+    read_input PAYPAL_CLIENT_SECRET ""
+
+    output ""
+
+    # Stripe (optional)
+    if read_yn "Configure Stripe as well?" 1; then
+        echo -n "* Stripe Publishable Key: " >/dev/tty
+        read_input STRIPE_KEY ""
+
+        echo -n "* Stripe Secret Key: " >/dev/tty
+        read_input STRIPE_SECRET ""
+
+        if [ -n "$STRIPE_KEY" ] && [ -n "$STRIPE_SECRET" ]; then
+            success "Stripe configured"
+        fi
+    fi
+
+    if [ -n "$PAYPAL_CLIENT_ID" ] && [ -n "$PAYPAL_CLIENT_SECRET" ]; then
+        success "PayPal configured ($PAYPAL_MODE)"
+    elif [ -n "$STRIPE_KEY" ]; then
+        success "Stripe only mode"
+    else
+        warning "No payment credentials provided. Billing will need manual .env setup."
+    fi
+
+    output ""
 }
 
 # ============================================================================
@@ -438,9 +492,14 @@ install_dependencies() {
         warning "Failed to install sortablejs, continuing..."
     fi
 
-    output ""
-    info "Optional: Install Stripe SDK for payments"
-    echo "  composer require stripe/stripe-php"
+    if [ "$INSTALL_BILLING" -eq 1 ]; then
+        output ""
+        info "Installing payment SDKs (PayPal/Stripe)..."
+        composer require paypal/checkout-sdk stripe/stripe-php --no-interaction 2>&1 | tail -1 || \
+            warning "Payment SDKs install failed — install manually: composer require paypal/checkout-sdk stripe/stripe-php"
+        success "Payment SDKs installed"
+    fi
+
     output ""
 }
 
@@ -470,6 +529,15 @@ update_env() {
     set_env "SOURBY_BILLING_ENABLED" "$([ "$INSTALL_BILLING" -eq 1 ] && echo 'true' || echo 'false')"
     set_env "SOURBY_PLAYER_LIST_ENABLED" "$([ "$INSTALL_PLAYERS" -eq 1 ] && echo 'true' || echo 'false')"
     set_env "SOURBY_CUSTOM_SORT_ENABLED" "$([ "$INSTALL_SORT" -eq 1 ] && echo 'true' || echo 'false')"
+
+    # PayPal
+    [ -n "$PAYPAL_MODE" ] && set_env "PAYPAL_MODE" "$PAYPAL_MODE"
+    [ -n "$PAYPAL_CLIENT_ID" ] && set_env "PAYPAL_CLIENT_ID" "$PAYPAL_CLIENT_ID"
+    [ -n "$PAYPAL_CLIENT_SECRET" ] && set_env "PAYPAL_CLIENT_SECRET" "$PAYPAL_CLIENT_SECRET"
+
+    # Stripe
+    [ -n "$STRIPE_KEY" ] && set_env "STRIPE_KEY" "$STRIPE_KEY"
+    [ -n "$STRIPE_SECRET" ] && set_env "STRIPE_SECRET" "$STRIPE_SECRET"
 
     success ".env updated"
     output ""
@@ -606,6 +674,7 @@ run_ui() {
             # Interactive configuration (like Pterodactyl installer)
             configure_panel
             configure_components
+            [ "$INSTALL_BILLING" -eq 1 ] && configure_payments
             divider
 
             create_backup
@@ -763,7 +832,7 @@ verify_install() {
 
 export -f output error success info warning welcome divider
 export -f prompt read_input read_yn
-export -f configure_panel configure_components build_component_string
+export -f configure_panel configure_components build_component_string configure_payments
 export -f check_root check_dependencies validate_pterodactyl
 export -f ensure_backup_dir create_backup list_backups restore_from_backup
 export -f download_sourby install_addons install_dependencies
