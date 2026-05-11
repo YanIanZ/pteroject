@@ -587,8 +587,11 @@ download_sourby() {
 install_panel_base() {
     local panel_src="$DOWNLOAD_DIR/panel-upstream"
     local panel_tar="$DOWNLOAD_DIR/panel.tar.gz"
-    # Latest stable release (NOT canary). Override with PANEL_RELEASE_URL.
-    local panel_url="${PANEL_RELEASE_URL:-https://github.com/pterodactyl/panel/releases/latest/download/panel.tar.gz}"
+    # Pterodactyl's GitHub "releases/latest" currently resolves to v1.12.2 (canary,
+    # Laravel 11, PHP 8.2). The theme + addons in this repo target the long-lived
+    # stable line (v1.11.x, Laravel 10), so pin to v1.11.11 by default. Override
+    # via PANEL_RELEASE_URL for any other release.
+    local panel_url="${PANEL_RELEASE_URL:-https://github.com/pterodactyl/panel/releases/download/v1.11.11/panel.tar.gz}"
 
     info "Downloading latest Pterodactyl panel release tarball..."
     info "URL: $panel_url"
