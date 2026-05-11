@@ -1,0 +1,19 @@
+### Sourby Custom Server Sort 1.0.3 — Updated for Sourby Panel v1.12.2
+
+This addon enables drag-and-drop reordering of servers in the Sourby dashboard.
+
+1. Copy customserversort.js to the panel:
+   cp customserversort.js /var/www/pterodactyl/public/themes/sourby/js/customserversort.js
+
+2. Add script tag to wrapper.blade.php:
+   Open /var/www/pterodactyl/resources/views/templates/wrapper.blade.php
+   Add this line after {!! $asset->js('main.js') !!}:
+
+   <script src="/themes/sourby/js/customserversort.js"></script>
+
+3. Rebuild frontend:
+   cd /var/www/pterodactyl
+   yarn run build:production
+
+4. Clear cache:
+   php artisan view:clear && php artisan cache:clear
