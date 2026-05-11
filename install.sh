@@ -70,7 +70,14 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}Step 2: Registering Sourby Theme Service Provider...${NC}"
+echo -e "${YELLOW}Step 2: Installing Dependencies...${NC}"
+cd "$PTERODACTYL_PATH"
+composer require paypal/checkout-sdk stripe/stripe-php
+yarn add sortablejs
+echo -e "${GREEN}✓ Dependencies installed${NC}"
+
+echo ""
+echo -e "${YELLOW}Step 3: Registering Sourby Theme Service Provider...${NC}"
 echo "Edit $PTERODACTYL_PATH/bootstrap/app.php and add to withProviders():"
 echo ""
 echo "    Pterodactyl\Providers\SourbyThemeServiceProvider::class,"
@@ -84,13 +91,13 @@ echo ""
 read -p "Press Enter after registering the service provider... " -t 30 || true
 
 echo ""
-echo -e "${YELLOW}Step 3: Running migrations...${NC}"
+echo -e "${YELLOW}Step 4: Running migrations...${NC}"
 cd "$PTERODACTYL_PATH"
 php artisan migrate --force
 echo -e "${GREEN}✓ Migrations completed${NC}"
 
 echo ""
-echo -e "${YELLOW}Step 4: Building frontend...${NC}"
+echo -e "${YELLOW}Step 5: Building frontend...${NC}"
 cd "$PTERODACTYL_PATH"
 if [ -f "package.json" ]; then
     yarn install
@@ -101,7 +108,7 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}Step 5: Clearing caches...${NC}"
+echo -e "${YELLOW}Step 6: Clearing caches...${NC}"
 cd "$PTERODACTYL_PATH"
 php artisan route:clear
 php artisan config:clear

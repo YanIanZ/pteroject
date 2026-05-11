@@ -67,7 +67,7 @@ Or edit `config/app.php` in the providers array:
 
 ### Step 4: Complete Installation
 
-After registering the provider, return to the terminal and press Enter to continue.
+After registering the provider, return to the terminal and press Enter to continue the automated installer, which will run migrations and build frontend assets.
 
 ## Manual Installation
 
@@ -91,7 +91,15 @@ cp -r "Player List & Counter 1.0/PanelFiles"/* $PTERODACTYL/
 cp -r "custom-server-sort-v103"/* $PTERODACTYL/
 ```
 
-### 2. Register Service Provider
+### 2. Install Dependencies
+
+```bash
+cd $PTERODACTYL
+composer require paypal/checkout-sdk stripe/stripe-php
+yarn add sortablejs
+```
+
+### 3. Register Service Provider
 
 Edit `$PTERODACTYL/bootstrap/app.php` or `$PTERODACTYL/config/app.php` and add:
 
@@ -99,14 +107,14 @@ Edit `$PTERODACTYL/bootstrap/app.php` or `$PTERODACTYL/config/app.php` and add:
 Pterodactyl\Providers\SourbyThemeServiceProvider::class,
 ```
 
-### 3. Run Migrations
+### 4. Run Migrations
 
 ```bash
 cd $PTERODACTYL
 php artisan migrate
 ```
 
-### 4. Configure Environment
+### 5. Configure Environment
 
 Edit `.env` file:
 
@@ -120,7 +128,7 @@ SOURBY_PLAYER_LIST_ENABLED=true
 SOURBY_CUSTOM_SORT_ENABLED=true
 ```
 
-### 5. Build Frontend
+### 6. Build Frontend
 
 ```bash
 cd $PTERODACTYL
@@ -128,7 +136,7 @@ yarn install
 yarn run build:production
 ```
 
-### 6. Clear Caches
+### 7. Clear Caches
 
 ```bash
 cd $PTERODACTYL
