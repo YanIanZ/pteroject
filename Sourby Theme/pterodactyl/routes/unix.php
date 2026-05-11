@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Pterodactyl\Http\Controllers\Admin\BaseController;
 use Pterodactyl\Http\Controllers\Admin\Unix\UnixController;
 use Pterodactyl\Http\Controllers\Admin\Unix\UpdateController;
 use Pterodactyl\Http\Controllers\Admin\Unix\SupportController;
@@ -13,7 +12,7 @@ use Pterodactyl\Http\Controllers\Admin\Unix\ConnectController;
 use Pterodactyl\Http\Controllers\Admin\Unix\BackgroundController;
 use Pterodactyl\Http\Controllers\Admin\Unix\UnixSettingController;
 
-Route::get('/', [BaseController::class, 'index'])->name('admin.index');
+// admin.index ('/') is owned by Pterodactyl core BaseController — do NOT re-register
 
 Route::group(['prefix' => 'unix'], function () {
     Route::get('/', [UnixController::class, 'index'])->name('admin.unix');

@@ -585,6 +585,7 @@ download_sourby() {
 install_panel_base() {
     local panel_src="$DOWNLOAD_DIR/panel-upstream"
     local panel_repo="${PANEL_UPSTREAM_REPO:-https://github.com/pterodactyl/panel.git}"
+    # Pterodactyl LTS = v1.11.11 (Laravel 10) — matches what theme/addons target
     local panel_ref="${PANEL_UPSTREAM_REF:-v1.11.11}"
 
     info "Fetching latest Pterodactyl panel base (${panel_repo} @ ${panel_ref})..."
@@ -797,15 +798,42 @@ register_provider() {
 
     local bootstrap_file="$PTERODACTYL_PATH/bootstrap/app.php"
     local config_file="$PTERODACTYL_PATH/config/app.php"
-    local provider_class="Pterodactyl\Providers\SourbyThemeServiceProvider::class"
+    local provider_class="Pterodactyl\\\\Providers\\\\SourbyThemeServiceProvider::class"
 
-    if [ -f "$bootstrap_file" ]; then
+    # Detect Laravel version: Laravel 11 uses Application::configure()->withProviders([...])
+    # Laravel 10 (Pterodactyl LTS v1.11.x) uses config/app.php 'providers' array
+    local is_laravel11=0
+    if [ -f "$bootstrap_file" ] && grep -q "withProviders\|Application::configure" "$bootstrap_file"; then
+        is_laravel11=1
+    fi
+
+    # Also ensure Unix provider isn't already registered (would cause double admin.index route)
+    local unix_registered=0
+    if [ -f "$config_file" ] && grep -q "UnixThemeServiceProvider" "$config_file"; then
+        unix_registered=1
+    fi
+    if [ -f "$bootstrap_file" ] && grep -q "UnixThemeServiceProvider" "$bootstrap_file"; then
+        unix_registered=1
+    fi
+    if [ "$unix_registered" -eq 1 ]; then
+        warning "UnixThemeServiceProvider already registered — removing to avoid route conflicts with Sourby"
+        [ -f "$config_file" ] && sed -i '/UnixThemeServiceProvider/d' "$config_file"
+        [ -f "$bootstrap_file" ] && sed -i '/UnixThemeServiceProvider/d' "$bootstrap_file"
+    fi
+
+    if [ "$is_laravel11" -eq 1 ]; then
         if ! grep -q "SourbyThemeServiceProvider" "$bootstrap_file"; then
-            info "Auto-registering in bootstrap/app.php..."
-            sed -i "/->withProviders(\[/a\        $provider_class," "$bootstrap_file" 2>/dev/null || true
-            success "Service provider registered in bootstrap/app.php"
+            info "Laravel 11 detected — registering in bootstrap/app.php..."
+            sed -i "/->withProviders(\[/a\\        $provider_class," "$bootstrap_file"
+            if grep -q "SourbyThemeServiceProvider" "$bootstrap_file"; then
+                success "Service provider registered in bootstrap/app.php"
+            else
+                error "Failed to inject provider — bootstrap/app.php may not have withProviders([ block"
+                error "Add manually: $provider_class"
+                return 1
+            fi
         else
-            success "Service provider already registered"
+            success "Service provider already registered (bootstrap/app.php)"
         fi
         output ""
         return 0
@@ -813,11 +841,23 @@ register_provider() {
 
     if [ -f "$config_file" ]; then
         if ! grep -q "SourbyThemeServiceProvider" "$config_file"; then
-            info "Auto-registering in config/app.php..."
-            sed -i "/'providers' => \[/a\        $provider_class," "$config_file" 2>/dev/null || true
-            success "Service provider registered in config/app.php"
+            info "Laravel 10 (Pterodactyl LTS) detected — registering in config/app.php..."
+            # Match the application providers section (RouteServiceProvider is the last app provider in stock Pterodactyl)
+            if grep -q "RouteServiceProvider::class" "$config_file"; then
+                sed -i "/RouteServiceProvider::class,/a\\        $provider_class," "$config_file"
+            else
+                sed -i "/'providers' => ServiceProvider::defaultProviders/a\\        $provider_class," "$config_file" 2>/dev/null || \
+                sed -i "/'providers' => \[/a\\        $provider_class," "$config_file"
+            fi
+            if grep -q "SourbyThemeServiceProvider" "$config_file"; then
+                success "Service provider registered in config/app.php"
+            else
+                error "Failed to inject provider into config/app.php"
+                error "Add manually inside 'providers' => [ ... ] array: $provider_class"
+                return 1
+            fi
         else
-            success "Service provider already registered"
+            success "Service provider already registered (config/app.php)"
         fi
         output ""
         return 0
