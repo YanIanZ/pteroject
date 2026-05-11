@@ -1,0 +1,46 @@
+/* Sourby Player List Addon Styling */
+
+.sourby-player-counter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--theme-card, #242424);
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: var(--theme-text, #e5e7eb);
+}
+
+.sourby-player-counter-icon {
+    display: inline-flex;
+    width: 1.25rem;
+    height: 1.25rem;
+    align-items: center;
+    justify-content: center;
+}
+
+.sourby-player-list {
+    margin-top: 1rem;
+    border-top: 1px solid var(--theme-border, #333);
+    padding-top: 1rem;
+}
+
+.sourby-player-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--theme-input, #1f1f1f);
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.sourby-player-status {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+    background-color: #22c55e;
+}

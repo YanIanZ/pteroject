@@ -1,0 +1,35 @@
+### Unix Theme v2.2.0 — Updated for Pterodactyl Panel v1.12.2
+
+### INSTALLATION
+
+#### Step 1: Copy theme files
+Copy the contents of the 'pterodactyl/' folder into your Pterodactyl panel root
+(/var/www/pterodactyl/), merging all directories.
+
+#### Step 2: Register the theme service provider
+Open bootstrap/app.php and add:
+    ->withProviders([
+        Pterodactyl\Providers\UnixThemeServiceProvider::class,
+    ])
+...or add to config/app.php providers array:
+    Pterodactyl\Providers\UnixThemeServiceProvider::class,
+
+#### Step 3: Register the admin middleware alias (if not present)
+Open app/Http/Kernel.php and ensure 'admin' alias maps to:
+    'admin' => \Pterodactyl\Http\Middleware\AdminAuthenticate::class,
+
+#### Step 4: Run migrations
+    php artisan migrate
+
+#### Step 5: Build frontend
+    yarn install
+    yarn run build:production
+
+#### Step 6: Clear caches
+    php artisan route:clear && php artisan config:clear && php artisan view:clear && php artisan cache:clear
+
+### IMPORTANT NOTES
+- This theme REQUIRES panel v1.12.0+. Not compatible with older versions.
+- The theme no longer overwrites RouteServiceProvider — routes are registered via UnixThemeServiceProvider.
+- Theme settings are shared to views via ViewComposer, not per-controller.
+- FontAwesome Pro classes have been replaced with FontAwesome Free 4/5 icons.

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>graphify - graphify-out/graph.html</title>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; height: 100vh; overflow: hidden; }
+  #graph { flex: 1; }
+  #sidebar { width: 280px; background: #1a1a2e; border-left: 1px solid #2a2a4e; display: flex; flex-direction: column; overflow: hidden; }
+  #search-wrap { padding: 12px; border-bottom: 1px solid #2a2a4e; }
+  #search { width: 100%; background: #0f0f1a; border: 1px solid #3a3a5e; color: #e0e0e0; padding: 7px 10px; border-radius: 6px; font-size: 13px; outline: none; }
+  #search:focus { border-color: #4E79A7; }
+  #search-results { max-height: 140px; overflow-y: auto; padding: 4px 12px; border-bottom: 1px solid #2a2a4e; display: none; }
+  .search-item { padding: 4px 6px; cursor: pointer; border-radius: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search-item:hover { background: #2a2a4e; }
+  #info-panel { padding: 14px; border-bottom: 1px solid #2a2a4e; min-height: 140px; }
+  #info-panel h3 { font-size: 13px; color: #aaa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  #info-content { font-size: 13px; color: #ccc; line-height: 1.6; }
+  #info-content .field { margin-bottom: 5px; }
+  #info-content .field b { color: #e0e0e0; }
+  #info-content .empty { color: #555; font-style: italic; }
+  .neighbor-link { display: block; padding: 2px 6px; margin: 2px 0; border-radius: 3px; cursor: pointer; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid #333; }
+  .neighbor-link:hover { background: #2a2a4e; }
+  #neighbors-list { max-height: 160px; overflow-y: auto; margin-top: 4px; }
+  #legend-wrap { flex: 1; overflow-y: auto; padding: 12px; }
+  #legend-wrap h3 { font-size: 13px; color: #aaa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .legend-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; border-radius: 4px; font-size: 12px; }
+  .legend-item:hover { background: #2a2a4e; padding-left: 4px; }
+  .legend-item.dimmed { opacity: 0.35; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .legend-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .legend-count { color: #666; font-size: 11px; }
+  #stats { padding: 10px 14px; border-top: 1px solid #2a2a4e; font-size: 11px; color: #555; }
+  #legend-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 4px 0; }
+  #legend-controls label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: #aaa; user-select: none; }
+  #legend-controls label:hover { color: #e0e0e0; }
+  .legend-cb, #select-all-cb { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; border: 1.5px solid #3a3a5e; border-radius: 3px; background: #0f0f1a; cursor: pointer; position: relative; flex-shrink: 0; }
+  .legend-cb:checked, #select-all-cb:checked { background: #4E79A7; border-color: #4E79A7; }
+  .legend-cb:checked::after, #select-all-cb:checked::after { content: ''; position: absolute; left: 3.5px; top: 1px; width: 4px; height: 7px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  #select-all-cb:indeterminate { background: #4E79A7; border-color: #4E79A7; }
+  #select-all-cb:indeterminate::after { content: ''; position: absolute; left: 2px; top: 5px; width: 8px; height: 2px; background: #fff; border: none; transform: none; }
+</style>
+</head>
+<body>
+<div id="graph"></div>
+<div id="sidebar">
+  <div id="search-wrap">
+    <input id="search" type="text" placeholder="Search nodes..." autocomplete="off">
+    <div id="search-results"></div>
+  </div>
+  <div id="info-panel">
+    <h3>Node Info</h3>
+    <div id="info-content"><span class="empty">Click a node to inspect it</span></div>
+  </div>
+  <div id="legend-wrap">
+    <h3>Communities</h3>
+    <div id="legend-controls">
+      <label><input type="checkbox" id="select-all-cb" checked onchange="toggleAllCommunities(!this.checked)">Select All</label>
+    </div>
+    <div id="legend"></div>
+  </div>
+  <div id="stats">49 nodes &middot; 55 edges &middot; 10 communities</div>
+</div>
+<script>
+const RAW_NODES = [{"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby", "label": "Sourby (Rebranded Pterodactyl Panel)", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 28.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Sourby (Rebranded Pterodactyl Panel)", "community": 6, "community_name": "Sourby Repository & Branding", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 6}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-unix-theme", "label": "Sourby Unix Theme v2.2.0", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 22.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Sourby Unix Theme v2.2.0", "community": 3, "community_name": "Sourby Rebrand Integration", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 4}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-billing", "label": "Sourby Billing System (PayPal + Stripe)", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 22.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Sourby Billing System (PayPal + Stripe)", "community": 5, "community_name": "Payment Gateway Integration", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 4}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-player-list", "label": "Sourby Player List & Counter 1.0", "color": {"background": "#9C755F", "border": "#9C755F", "highlight": {"background": "#ffffff", "border": "#9C755F"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Sourby Player List &amp; Counter 1.0", "community": 8, "community_name": "Player List & Counter", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-custom-sort", "label": "Sourby Custom Server Sort 1.0.3", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Sourby Custom Server Sort 1.0.3", "community": 6, "community_name": "Sourby Repository & Branding", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-service-provider", "label": "SourbyThemeServiceProvider", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 25.0, "font": {"size": 12, "color": "#ffffff"}, "title": "SourbyThemeServiceProvider", "community": 0, "community_name": "Addon Service Provider Pattern", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 5}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-composer", "label": "SourbyThemeComposer", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 19.0, "font": {"size": 12, "color": "#ffffff"}, "title": "SourbyThemeComposer", "community": 0, "community_name": "Addon Service Provider Pattern", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 3}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-setting", "label": "SourbySetting (Eloquent Model)", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "SourbySetting (Eloquent Model)", "community": 0, "community_name": "Addon Service Provider Pattern", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-config", "label": "sourby.php Config", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "sourby.php Config", "community": 0, "community_name": "Addon Service Provider Pattern", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_admin-sourby-routes", "label": "admin.sourby.* Routes", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "admin.sourby.* Routes", "community": 0, "community_name": "Addon Service Provider Pattern", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_addon-styles-blade", "label": "addon-styles.blade.php (Addon CSS Loader)", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 22.0, "font": {"size": 12, "color": "#ffffff"}, "title": "addon-styles.blade.php (Addon CSS Loader)", "community": 4, "community_name": "Addon CSS Bundle", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 4}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-billing-css", "label": "Sourby Billing Addon CSS", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Sourby Billing Addon CSS", "community": 4, "community_name": "Addon CSS Bundle", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-player-list-css", "label": "Sourby Player List Addon CSS", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Sourby Player List Addon CSS", "community": 4, "community_name": "Addon CSS Bundle", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-custom-sort-css", "label": "Sourby Custom Sort Addon CSS", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Sourby Custom Sort Addon CSS", "community": 4, "community_name": "Addon CSS Bundle", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_admin-modern-css", "label": "Sourby Admin Modern CSS (Dark Theme)", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Sourby Admin Modern CSS (Dark Theme)", "community": 3, "community_name": "Sourby Rebrand Integration", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-shop-settings-view", "label": "Sourby Shop Settings View (Blade)", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Sourby Shop Settings View (Blade)", "community": 5, "community_name": "Payment Gateway Integration", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_pteroject", "label": "pteroject (GitHub Repository)", "color": {"background": "#B07AA1", "border": "#B07AA1", "highlight": {"background": "#ffffff", "border": "#B07AA1"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "pteroject (GitHub Repository)", "community": 6, "community_name": "Sourby Repository & Branding", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_sourby-integration-guide", "label": "SOURBY_INTEGRATION.md (Integration Guide)", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "SOURBY_INTEGRATION.md (Integration Guide)", "community": 3, "community_name": "Sourby Rebrand Integration", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_paypal-checkout-sdk", "label": "PayPal Checkout SDK", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "PayPal Checkout SDK", "community": 5, "community_name": "Payment Gateway Integration", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-sourby-rebrand-integration_stripe", "label": "Stripe Payment Integration", "color": {"background": "#EDC948", "border": "#EDC948", "highlight": {"background": "#ffffff", "border": "#EDC948"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Stripe Payment Integration", "community": 5, "community_name": "Payment Gateway Integration", "source_file": "docs/superpowers/plans/2026-05-11-ptero-sourby-rebrand-integration.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-addons-theme-upgrade_pterodactyl-panel", "label": "Pterodactyl Panel v1.12.2", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 40.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Pterodactyl Panel v1.12.2", "community": 2, "community_name": "Core Platform Stack", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 10}, {"id": "2026-05-11-ptero-addons-theme-upgrade_unix-theme", "label": "Unix Theme v2.2.0", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 25.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Unix Theme v2.2.0", "community": 3, "community_name": "Sourby Rebrand Integration", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 5}, {"id": "2026-05-11-ptero-addons-theme-upgrade_billing-system", "label": "Billing System v1.x (v1.43)", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 31.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Billing System v1.x (v1.43)", "community": 1, "community_name": "Legacy Billing System", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 7}, {"id": "2026-05-11-ptero-addons-theme-upgrade_player-list", "label": "Player List & Counter 1.0", "color": {"background": "#9C755F", "border": "#9C755F", "highlight": {"background": "#ffffff", "border": "#9C755F"}}, "size": 19.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Player List &amp; Counter 1.0", "community": 8, "community_name": "Player List & Counter", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 3}, {"id": "2026-05-11-ptero-addons-theme-upgrade_custom-server-sort", "label": "Custom Server Sort 1.0.3", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 22.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Custom Server Sort 1.0.3", "community": 7, "community_name": "Custom Server Sort", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 4}, {"id": "2026-05-11-ptero-addons-theme-upgrade_unix-theme-service-provider", "label": "UnixThemeServiceProvider", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 22.0, "font": {"size": 12, "color": "#ffffff"}, "title": "UnixThemeServiceProvider", "community": 0, "community_name": "Addon Service Provider Pattern", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 4}, {"id": "2026-05-11-ptero-addons-theme-upgrade_unix-theme-composer", "label": "UnixThemeComposer", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 19.0, "font": {"size": 12, "color": "#ffffff"}, "title": "UnixThemeComposer", "community": 0, "community_name": "Addon Service Provider Pattern", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 3}, {"id": "2026-05-11-ptero-addons-theme-upgrade_unix-setting", "label": "UnixSetting (Eloquent Model)", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "UnixSetting (Eloquent Model)", "community": 0, "community_name": "Addon Service Provider Pattern", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-addons-theme-upgrade_unix-config", "label": "unix.php Config", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "unix.php Config", "community": 0, "community_name": "Addon Service Provider Pattern", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-addons-theme-upgrade_admin-unix-routes", "label": "admin.unix.* Routes", "color": {"background": "#4E79A7", "border": "#4E79A7", "highlight": {"background": "#ffffff", "border": "#4E79A7"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "admin.unix.* Routes", "community": 0, "community_name": "Addon Service Provider Pattern", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-addons-theme-upgrade_paypal-payment", "label": "PayPalPayment (PayPal Checkout SDK Wrapper)", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "PayPalPayment (PayPal Checkout SDK Wrapper)", "community": 1, "community_name": "Legacy Billing System", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_payment-controller", "label": "PaymentController (Billing)", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "PaymentController (Billing)", "community": 1, "community_name": "Legacy Billing System", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-addons-theme-upgrade_shop-controller", "label": "ShopController (Billing - Eloquent Conversion)", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "ShopController (Billing - Eloquent Conversion)", "community": 1, "community_name": "Legacy Billing System", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_suspended-box-integration", "label": "SuspendedBoxIntegration", "color": {"background": "#BAB0AC", "border": "#BAB0AC", "highlight": {"background": "#ffffff", "border": "#BAB0AC"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "SuspendedBoxIntegration", "community": 9, "community_name": "Screen Block Component", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_paypal-rest-sdk-deprecated", "label": "PayPal REST API SDK (Deprecated)", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "PayPal REST API SDK (Deprecated)", "community": 1, "community_name": "Legacy Billing System", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_laravel-invoices-deprecated", "label": "laravel-invoices Library (Deprecated)", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "laravel-invoices Library (Deprecated)", "community": 1, "community_name": "Legacy Billing System", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_route-service-provider-deleted", "label": "RouteServiceProvider.php (Deleted)", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "RouteServiceProvider.php (Deleted)", "community": 3, "community_name": "Sourby Rebrand Integration", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_server-console-container", "label": "ServerConsoleContainer.tsx", "color": {"background": "#9C755F", "border": "#9C755F", "highlight": {"background": "#ffffff", "border": "#9C755F"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "ServerConsoleContainer.tsx", "community": 8, "community_name": "Player List & Counter", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_service-provider-injection", "label": "Service Provider Injection Pattern", "color": {"background": "#76B7B2", "border": "#76B7B2", "highlight": {"background": "#ffffff", "border": "#76B7B2"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Service Provider Injection Pattern", "community": 3, "community_name": "Sourby Rebrand Integration", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-addons-theme-upgrade_blade-section-stacking", "label": "Blade @stack/@push Section Stacking Pattern", "color": {"background": "#59A14F", "border": "#59A14F", "highlight": {"background": "#ffffff", "border": "#59A14F"}}, "size": 16.0, "font": {"size": 12, "color": "#ffffff"}, "title": "Blade @stack/@push Section Stacking Pattern", "community": 4, "community_name": "Addon CSS Bundle", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 2}, {"id": "2026-05-11-ptero-addons-theme-upgrade_dom-injection-js", "label": "DOM-Injection JavaScript Pattern", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "DOM-Injection JavaScript Pattern", "community": 7, "community_name": "Custom Server Sort", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_sortablejs", "label": "SortableJS", "color": {"background": "#FF9DA7", "border": "#FF9DA7", "highlight": {"background": "#ffffff", "border": "#FF9DA7"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "SortableJS", "community": 7, "community_name": "Custom Server Sort", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_laravel11", "label": "Laravel 11", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Laravel 11", "community": 2, "community_name": "Core Platform Stack", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_php82", "label": "PHP 8.2+", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "PHP 8.2+", "community": 2, "community_name": "Core Platform Stack", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_react-typescript", "label": "React/TypeScript", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "React/TypeScript", "community": 2, "community_name": "Core Platform Stack", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_blade", "label": "Blade (Laravel Templating)", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Blade (Laravel Templating)", "community": 2, "community_name": "Core Platform Stack", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_go124", "label": "Go 1.24 (Wings)", "color": {"background": "#E15759", "border": "#E15759", "highlight": {"background": "#ffffff", "border": "#E15759"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "Go 1.24 (Wings)", "community": 2, "community_name": "Core Platform Stack", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_screenblock-deleted", "label": "ScreenBlock.tsx (Removed)", "color": {"background": "#BAB0AC", "border": "#BAB0AC", "highlight": {"background": "#ffffff", "border": "#BAB0AC"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "ScreenBlock.tsx (Removed)", "community": 9, "community_name": "Screen Block Component", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}, {"id": "2026-05-11-ptero-addons-theme-upgrade_paneledit-billing", "label": "PanelEdit.txt (Billing Installation)", "color": {"background": "#F28E2B", "border": "#F28E2B", "highlight": {"background": "#ffffff", "border": "#F28E2B"}}, "size": 13.0, "font": {"size": 0, "color": "#ffffff"}, "title": "PanelEdit.txt (Billing Installation)", "community": 1, "community_name": "Legacy Billing System", "source_file": "docs/superpowers/plans/2026-05-11-ptero-addons-theme-upgrade.md", "file_type": "document", "degree": 1}];
+const RAW_EDGES = [{"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-unix-theme", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby", "label": "conceptually_related_to", "title": "conceptually_related_to [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-billing", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby", "label": "conceptually_related_to", "title": "conceptually_related_to [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-player-list", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby", "label": "conceptually_related_to", "title": "conceptually_related_to [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-custom-sort", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby", "label": "conceptually_related_to", "title": "conceptually_related_to [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby", "to": "2026-05-11-ptero-sourby-rebrand-integration_pteroject", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby", "to": "2026-05-11-ptero-addons-theme-upgrade_pterodactyl-panel", "label": "semantically_similar_to", "title": "semantically_similar_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-unix-theme", "to": "2026-05-11-ptero-addons-theme-upgrade_unix-theme", "label": "conceptually_related_to", "title": "conceptually_related_to [AMBIGUOUS]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "AMBIGUOUS"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-integration-guide", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby-unix-theme", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_admin-modern-css", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby-unix-theme", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-billing", "to": "2026-05-11-ptero-sourby-rebrand-integration_paypal-checkout-sdk", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-billing", "to": "2026-05-11-ptero-sourby-rebrand-integration_stripe", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-billing", "to": "2026-05-11-ptero-addons-theme-upgrade_billing-system", "label": "semantically_similar_to", "title": "semantically_similar_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-player-list", "to": "2026-05-11-ptero-addons-theme-upgrade_player-list", "label": "semantically_similar_to", "title": "semantically_similar_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-custom-sort", "to": "2026-05-11-ptero-addons-theme-upgrade_custom-server-sort", "label": "semantically_similar_to", "title": "semantically_similar_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-service-provider", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-composer", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-service-provider", "to": "2026-05-11-ptero-sourby-rebrand-integration_admin-sourby-routes", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-service-provider", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby-config", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-service-provider", "to": "2026-05-11-ptero-addons-theme-upgrade_unix-theme-service-provider", "label": "semantically_similar_to", "title": "semantically_similar_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-service-provider", "to": "2026-05-11-ptero-addons-theme-upgrade_service-provider-injection", "label": "references", "title": "references [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-composer", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby-setting", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-composer", "to": "2026-05-11-ptero-addons-theme-upgrade_unix-theme-composer", "label": "semantically_similar_to", "title": "semantically_similar_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-setting", "to": "2026-05-11-ptero-addons-theme-upgrade_unix-setting", "label": "semantically_similar_to", "title": "semantically_similar_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-config", "to": "2026-05-11-ptero-addons-theme-upgrade_unix-config", "label": "semantically_similar_to", "title": "semantically_similar_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_admin-sourby-routes", "to": "2026-05-11-ptero-addons-theme-upgrade_admin-unix-routes", "label": "semantically_similar_to", "title": "semantically_similar_to [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_addon-styles-blade", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby-billing-css", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_addon-styles-blade", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby-player-list-css", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_addon-styles-blade", "to": "2026-05-11-ptero-sourby-rebrand-integration_sourby-custom-sort-css", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_addon-styles-blade", "to": "2026-05-11-ptero-addons-theme-upgrade_blade-section-stacking", "label": "references", "title": "references [INFERRED]", "dashes": true, "width": 1, "color": {"opacity": 0.35}, "confidence": "INFERRED"}, {"from": "2026-05-11-ptero-sourby-rebrand-integration_sourby-shop-settings-view", "to": "2026-05-11-ptero-sourby-rebrand-integration_stripe", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_pterodactyl-panel", "to": "2026-05-11-ptero-addons-theme-upgrade_laravel11", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_pterodactyl-panel", "to": "2026-05-11-ptero-addons-theme-upgrade_php82", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_pterodactyl-panel", "to": "2026-05-11-ptero-addons-theme-upgrade_react-typescript", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_pterodactyl-panel", "to": "2026-05-11-ptero-addons-theme-upgrade_blade", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_pterodactyl-panel", "to": "2026-05-11-ptero-addons-theme-upgrade_go124", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_billing-system", "to": "2026-05-11-ptero-addons-theme-upgrade_pterodactyl-panel", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_unix-theme", "to": "2026-05-11-ptero-addons-theme-upgrade_pterodactyl-panel", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_player-list", "to": "2026-05-11-ptero-addons-theme-upgrade_pterodactyl-panel", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_custom-server-sort", "to": "2026-05-11-ptero-addons-theme-upgrade_pterodactyl-panel", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_unix-theme", "to": "2026-05-11-ptero-addons-theme-upgrade_route-service-provider-deleted", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_unix-theme", "to": "2026-05-11-ptero-addons-theme-upgrade_service-provider-injection", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_unix-theme", "to": "2026-05-11-ptero-addons-theme-upgrade_blade-section-stacking", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_billing-system", "to": "2026-05-11-ptero-addons-theme-upgrade_paypal-rest-sdk-deprecated", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_billing-system", "to": "2026-05-11-ptero-addons-theme-upgrade_laravel-invoices-deprecated", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_billing-system", "to": "2026-05-11-ptero-addons-theme-upgrade_shop-controller", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_billing-system", "to": "2026-05-11-ptero-addons-theme-upgrade_payment-controller", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_billing-system", "to": "2026-05-11-ptero-addons-theme-upgrade_paneledit-billing", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_player-list", "to": "2026-05-11-ptero-addons-theme-upgrade_server-console-container", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_custom-server-sort", "to": "2026-05-11-ptero-addons-theme-upgrade_sortablejs", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_custom-server-sort", "to": "2026-05-11-ptero-addons-theme-upgrade_dom-injection-js", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_unix-theme-service-provider", "to": "2026-05-11-ptero-addons-theme-upgrade_unix-theme-composer", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_unix-theme-service-provider", "to": "2026-05-11-ptero-addons-theme-upgrade_admin-unix-routes", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_unix-theme-service-provider", "to": "2026-05-11-ptero-addons-theme-upgrade_unix-config", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_unix-theme-composer", "to": "2026-05-11-ptero-addons-theme-upgrade_unix-setting", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_payment-controller", "to": "2026-05-11-ptero-addons-theme-upgrade_paypal-payment", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}, {"from": "2026-05-11-ptero-addons-theme-upgrade_suspended-box-integration", "to": "2026-05-11-ptero-addons-theme-upgrade_screenblock-deleted", "label": "references", "title": "references [EXTRACTED]", "dashes": false, "width": 2, "color": {"opacity": 0.7}, "confidence": "EXTRACTED"}];
+const LEGEND = [{"cid": 0, "color": "#4E79A7", "label": "Addon Service Provider Pattern", "count": 10}, {"cid": 1, "color": "#F28E2B", "label": "Legacy Billing System", "count": 7}, {"cid": 2, "color": "#E15759", "label": "Core Platform Stack", "count": 6}, {"cid": 3, "color": "#76B7B2", "label": "Sourby Rebrand Integration", "count": 6}, {"cid": 4, "color": "#59A14F", "label": "Addon CSS Bundle", "count": 5}, {"cid": 5, "color": "#EDC948", "label": "Payment Gateway Integration", "count": 4}, {"cid": 6, "color": "#B07AA1", "label": "Sourby Repository &amp; Branding", "count": 3}, {"cid": 7, "color": "#FF9DA7", "label": "Custom Server Sort", "count": 3}, {"cid": 8, "color": "#9C755F", "label": "Player List &amp; Counter", "count": 3}, {"cid": 9, "color": "#BAB0AC", "label": "Screen Block Component", "count": 2}];
+
+// HTML-escape helper — prevents XSS when injecting graph data into innerHTML
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Build vis datasets
+const nodesDS = new vis.DataSet(RAW_NODES.map(n => ({
+  id: n.id, label: n.label, color: n.color, size: n.size,
+  font: n.font, title: n.title,
+  _community: n.community, _community_name: n.community_name,
+  _source_file: n.source_file, _file_type: n.file_type, _degree: n.degree,
+})));
+
+const edgesDS = new vis.DataSet(RAW_EDGES.map((e, i) => ({
+  id: i, from: e.from, to: e.to,
+  label: '',
+  title: e.title,
+  dashes: e.dashes,
+  width: e.width,
+  color: e.color,
+  arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+})));
+
+const container = document.getElementById('graph');
+const network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, {
+  physics: {
+    enabled: true,
+    solver: 'forceAtlas2Based',
+    forceAtlas2Based: {
+      gravitationalConstant: -60,
+      centralGravity: 0.005,
+      springLength: 120,
+      springConstant: 0.08,
+      damping: 0.4,
+      avoidOverlap: 0.8,
+    },
+    stabilization: { iterations: 200, fit: true },
+  },
+  interaction: {
+    hover: true,
+    tooltipDelay: 100,
+    hideEdgesOnDrag: true,
+    navigationButtons: false,
+    keyboard: false,
+  },
+  nodes: { shape: 'dot', borderWidth: 1.5 },
+  edges: { smooth: { type: 'continuous', roundness: 0.2 }, selectionWidth: 3 },
+});
+
+network.once('stabilizationIterationsDone', () => {
+  network.setOptions({ physics: { enabled: false } });
+});
+
+function showInfo(nodeId) {
+  const n = nodesDS.get(nodeId);
+  if (!n) return;
+  const neighborIds = network.getConnectedNodes(nodeId);
+  const neighborItems = neighborIds.map(nid => {
+    const nb = nodesDS.get(nid);
+    const color = nb ? nb.color.background : '#555';
+    return `<span class="neighbor-link" style="border-left-color:${esc(color)}" onclick="focusNode(${JSON.stringify(nid)})">${esc(nb ? nb.label : nid)}</span>`;
+  }).join('');
+  document.getElementById('info-content').innerHTML = `
+    <div class="field"><b>${esc(n.label)}</b></div>
+    <div class="field">Type: ${esc(n._file_type || 'unknown')}</div>
+    <div class="field">Community: ${esc(n._community_name)}</div>
+    <div class="field">Source: ${esc(n._source_file || '-')}</div>
+    <div class="field">Degree: ${n._degree}</div>
+    ${neighborIds.length ? `<div class="field" style="margin-top:8px;color:#aaa;font-size:11px">Neighbors (${neighborIds.length})</div><div id="neighbors-list">${neighborItems}</div>` : ''}
+  `;
+}
+
+function focusNode(nodeId) {
+  network.focus(nodeId, { scale: 1.4, animation: true });
+  network.selectNodes([nodeId]);
+  showInfo(nodeId);
+}
+
+// Track hovered node — hover detection is more reliable than click params
+let hoveredNodeId = null;
+network.on('hoverNode', params => {
+  hoveredNodeId = params.node;
+  container.style.cursor = 'pointer';
+});
+network.on('blurNode', () => {
+  hoveredNodeId = null;
+  container.style.cursor = 'default';
+});
+container.addEventListener('click', () => {
+  if (hoveredNodeId !== null) {
+    showInfo(hoveredNodeId);
+    network.selectNodes([hoveredNodeId]);
+  }
+});
+network.on('click', params => {
+  if (params.nodes.length > 0) {
+    showInfo(params.nodes[0]);
+  } else if (hoveredNodeId === null) {
+    document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
+  }
+});
+
+const searchInput = document.getElementById('search');
+const searchResults = document.getElementById('search-results');
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.toLowerCase().trim();
+  searchResults.innerHTML = '';
+  if (!q) { searchResults.style.display = 'none'; return; }
+  const matches = RAW_NODES.filter(n => n.label.toLowerCase().includes(q)).slice(0, 20);
+  if (!matches.length) { searchResults.style.display = 'none'; return; }
+  searchResults.style.display = 'block';
+  matches.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'search-item';
+    el.textContent = n.label;
+    el.style.borderLeft = `3px solid ${n.color.background}`;
+    el.style.paddingLeft = '8px';
+    el.onclick = () => {
+      network.focus(n.id, { scale: 1.5, animation: true });
+      network.selectNodes([n.id]);
+      showInfo(n.id);
+      searchResults.style.display = 'none';
+      searchInput.value = '';
+    };
+    searchResults.appendChild(el);
+  });
+});
+document.addEventListener('click', e => {
+  if (!searchResults.contains(e.target) && e.target !== searchInput)
+    searchResults.style.display = 'none';
+});
+
+const hiddenCommunities = new Set();
+
+const selectAllCb = document.getElementById('select-all-cb');
+
+function updateSelectAllState() {
+  const total = LEGEND.length;
+  const hidden = hiddenCommunities.size;
+  selectAllCb.checked = hidden === 0;
+  selectAllCb.indeterminate = hidden > 0 && hidden < total;
+}
+
+function toggleAllCommunities(hide) {
+  document.querySelectorAll('.legend-item').forEach(item => {
+    hide ? item.classList.add('dimmed') : item.classList.remove('dimmed');
+  });
+  document.querySelectorAll('.legend-cb').forEach(cb => {
+    cb.checked = !hide;
+  });
+  LEGEND.forEach(c => {
+    if (hide) hiddenCommunities.add(c.cid); else hiddenCommunities.delete(c.cid);
+  });
+  const updates = RAW_NODES.map(n => ({ id: n.id, hidden: hide }));
+  nodesDS.update(updates);
+  updateSelectAllState();
+}
+
+const legendEl = document.getElementById('legend');
+LEGEND.forEach(c => {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'legend-cb';
+  cb.checked = true;
+  cb.addEventListener('change', (e) => {
+    e.stopPropagation();
+    if (cb.checked) {
+      hiddenCommunities.delete(c.cid);
+      item.classList.remove('dimmed');
+    } else {
+      hiddenCommunities.add(c.cid);
+      item.classList.add('dimmed');
+    }
+    const updates = RAW_NODES
+      .filter(n => n.community === c.cid)
+      .map(n => ({ id: n.id, hidden: !cb.checked }));
+    nodesDS.update(updates);
+    updateSelectAllState();
+  });
+  item.innerHTML = `<div class="legend-dot" style="background:${c.color}"></div>
+    <span class="legend-label">${c.label}</span>
+    <span class="legend-count">${c.count}</span>`;
+  item.prepend(cb);
+  item.onclick = (e) => {
+    if (e.target === cb) return;
+    cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event('change'));
+  };
+  legendEl.appendChild(item);
+});
+</script>
+<script>
+// Render hyperedges as shaded regions
+const hyperedges = [{"label": "Sourby Theme Package (Service Provider + Composer + Model)", "nodes": ["2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-service-provider", "2026-05-11-ptero-sourby-rebrand-integration_sourby-theme-composer", "2026-05-11-ptero-sourby-rebrand-integration_sourby-setting"], "confidence": "INFERRED", "role": "theme_injection_architecture"}, {"label": "Sourby Addon CSS Bundle (Billing + Player List + Custom Sort Styles)", "nodes": ["2026-05-11-ptero-sourby-rebrand-integration_sourby-billing-css", "2026-05-11-ptero-sourby-rebrand-integration_sourby-player-list-css", "2026-05-11-ptero-sourby-rebrand-integration_sourby-custom-sort-css"], "confidence": "EXTRACTED", "role": "shared_addon_styling"}, {"label": "Payment Gateway Duality (PayPal + Stripe via PaymentController)", "nodes": ["2026-05-11-ptero-addons-theme-upgrade_paypal-payment", "2026-05-11-ptero-addons-theme-upgrade_payment-controller", "2026-05-11-ptero-addons-theme-upgrade_stripe"], "confidence": "EXTRACTED", "role": "dual_payment_processing"}];
+// afterDrawing passes ctx already transformed to network coordinate space.
+// Draw node positions raw — no manual pan/zoom/DPR math needed.
+network.on('afterDrawing', function(ctx) {
+    hyperedges.forEach(h => {
+        const positions = h.nodes
+            .map(nid => network.getPositions([nid])[nid])
+            .filter(p => p !== undefined);
+        if (positions.length < 2) return;
+        ctx.save();
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = '#6366f1';
+        ctx.strokeStyle = '#6366f1';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        // Centroid and expanded hull in network coordinates
+        const cx = positions.reduce((s, p) => s + p.x, 0) / positions.length;
+        const cy = positions.reduce((s, p) => s + p.y, 0) / positions.length;
+        const expanded = positions.map(p => ({
+            x: cx + (p.x - cx) * 1.15,
+            y: cy + (p.y - cy) * 1.15
+        }));
+        ctx.moveTo(expanded[0].x, expanded[0].y);
+        expanded.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 0.4;
+        ctx.stroke();
+        // Label
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = '#4f46e5';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(h.label, cx, cy - 5);
+        ctx.restore();
+    });
+});
+</script>
+</body>
+</html>

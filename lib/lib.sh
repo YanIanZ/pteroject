@@ -171,7 +171,7 @@ configure_components() {
     echo -e "  ${CYAN}Addon Selection${NC}"
     output ""
 
-    if ! read_yn "Install Unix Theme v2 (modern dark theme)?" 1; then
+    if ! read_yn "Install Sourby Theme (modern dark theme)?" 1; then
         INSTALL_THEME=0
     fi
 
@@ -189,7 +189,7 @@ configure_components() {
 
     output ""
     info "Selected:"
-    [ "$INSTALL_THEME" -eq 1 ] && output "  ${GREEN}✓${NC} Unix Theme v2"
+    [ "$INSTALL_THEME" -eq 1 ] && output "  ${GREEN}✓${NC} Sourby Theme"
     [ "$INSTALL_BILLING" -eq 1 ] && output "  ${GREEN}✓${NC} Billing System"
     [ "$INSTALL_PLAYERS" -eq 1 ] && output "  ${GREEN}✓${NC} Player List"
     [ "$INSTALL_SORT" -eq 1 ] && output "  ${GREEN}✓${NC} Custom Server Sort"
@@ -598,14 +598,14 @@ install_addons() {
     local installed=0
 
     if [[ "$components" == *"theme"* ]]; then
-        local theme_dir="$EXTRACTED_DIR/Unix Theme v2/pterodactyl"
+        local theme_dir="$EXTRACTED_DIR/Sourby Theme/pterodactyl"
         if [ -d "$theme_dir" ]; then
-            info "Installing Unix Theme v2..."
+            info "Installing Sourby Theme..."
             cp -r "$theme_dir"/* "$PTERODACTYL_PATH/"
-            success "Unix Theme v2 installed"
+            success "Sourby Theme installed"
             installed=1
         else
-            warning "Unix Theme v2 not found at $theme_dir"
+            warning "Sourby Theme not found at $theme_dir"
         fi
     fi
 
