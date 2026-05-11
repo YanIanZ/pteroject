@@ -4,48 +4,41 @@ This guide covers installing Sourby (enhanced Pterodactyl with integrated addons
 
 ## Quick Start (Recommended)
 
-### Option 1: Full Setup Wizard (Complete Configuration)
+### Unified Installer (All-in-One Solution)
 
-**Interactive setup wizard with selective addon/theme installation:**
+**One script for installation, configuration, backup/restore, and management:**
 
 ```bash
-# Using curl
-curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-setup-wizard.sh | sudo bash
+# Using curl (auto-installs everything)
+curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-installer.sh | sudo bash
 
-# Or run locally
-sudo ./sourby-setup-wizard.sh
+# Or run locally (interactive menu)
+sudo ./sourby-installer.sh
 ```
 
-The `sourby-setup-wizard.sh` script provides:
+**Local Mode (Interactive Menu):**
+- **1) Install Sourby** - Guided setup with component selection and PayPal configuration
+- **2) Uninstall Sourby** - One-command restore from latest backup
+- **3) Reconfigure Sourby** - Update PayPal, theme, or addon settings
+- **4) View Backup History** - List all backups with timestamps and sizes
+- **5) Exit**
+
+**Features:**
 - ✓ Choose which addons to install (Unix Theme, Billing, Player List, Custom Sort)
-- ✓ Interactive theme configuration (app name, logo, favicon, colors)
-- ✓ Complete PayPal setup (Client ID, Secret, mode selection)
-- ✓ Stripe integration setup (optional)
+- ✓ Interactive theme configuration (app name, logo, favicon, background)
+- ✓ Complete PayPal & Stripe setup automation
 - ✓ Automatic .env file configuration with all settings
-- ✓ Automatic backup before installation
-- ✓ Complete dependency installation
-- ✓ Frontend asset building
-- ✓ Database migrations
+- ✓ Automatic backup before any changes
+- ✓ One-command uninstall with automatic restore
+- ✓ Reconfigure existing installations
+- ✓ Complete dependency installation with user control
+- ✓ Frontend asset building and cache clearing
 
-### Option 2: Quick Manager (Install/Uninstall Only)
-
-**Faster installation without interactive setup (installs all components):**
-
-```bash
-# Using curl
-curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-manager.sh | sudo bash
-
-# Or run locally
-sudo ./sourby-manager.sh
-```
-
-The `sourby-manager.sh` script provides:
-- ✓ Fully automated installation of all components
-- ✓ Automatic backup before installation
-- ✓ Interactive menu (install/uninstall/backup history)
-- ✓ One-command uninstallation with automatic restore
-- ✓ Complete dependency installation
-- ✓ Frontend asset building
+**Curl Mode (Automated):**
+- Installs all components automatically
+- Auto-configures with defaults
+- No prompts (fully automated)
+- Creates backup automatically
 
 ---
 

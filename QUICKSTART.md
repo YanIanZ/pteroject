@@ -2,38 +2,44 @@
 
 Get Sourby installed in 5 minutes with automatic backup and uninstall support.
 
-## Recommended: Interactive Setup Wizard
+## Recommended: Unified Installer
+
+**One script for installation, configuration, and management:**
+
+### Option 1: Local (Interactive Menu)
 
 ```bash
-# Full setup with addon selection and PayPal configuration
-curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-setup-wizard.sh | sudo bash
+sudo ./sourby-installer.sh
 ```
 
-Or run locally:
+Menu options:
+- 1) Install Sourby (with component/PayPal setup)
+- 2) Uninstall Sourby (restore from backup)
+- 3) Reconfigure existing Sourby
+- 4) View backup history
+- 5) Exit
+
+Choose components, configure PayPal/Stripe, and install in ~10 minutes.
+
+### Option 2: Curl (Fully Automated)
+
 ```bash
-sudo ./sourby-setup-wizard.sh
+curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-installer.sh | sudo bash
 ```
 
-This walks you through:
-1. Selecting which addons to install
-2. Configuring app name and theme
-3. Setting up PayPal (Client ID, Secret, mode)
-4. Configuring Stripe (optional)
-5. Automatic installation with backup
-
-**Complete in ~5-10 minutes with full configuration.**
+Auto-installs everything with defaults, no prompts.
 
 ---
 
-## Alternative: Quick Installation
+## Features
 
-Skip configuration and install everything at once:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-manager.sh | sudo bash
-```
-
-Manual configuration after install, uninstall/reinstall support included.
+✓ Choose addons: Unix Theme, Billing, Player List, Custom Sort
+✓ PayPal Client ID/Secret setup
+✓ Stripe integration (optional)
+✓ Theme customization: logo, favicon, background, app name
+✓ Automatic .env configuration
+✓ Backup/restore with timestamps
+✓ Install/uninstall/reconfigure all from one script
 
 ---
 

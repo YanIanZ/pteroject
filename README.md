@@ -20,41 +20,33 @@ Sourby is a rebranded and enhanced version of the Pterodactyl Game Server Panel 
 - Composer
 - curl, unzip, git
 
-### Recommended: Full Setup Wizard (Complete Configuration)
+### Recommended: Unified Installer (All-in-One)
 
-**Interactive setup with selective addon/theme installation and automatic PayPal/theme configuration:**
+**One script for everything: installation, configuration, backup/restore, and management:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-setup-wizard.sh | sudo bash
+# Curl (auto-installs everything)
+curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-installer.sh | sudo bash
+
+# Or locally (interactive menu)
+sudo ./sourby-installer.sh
 ```
 
-Or locally:
-```bash
-sudo ./sourby-setup-wizard.sh
-```
-
-Features:
+**Local mode features:**
+- ✓ Interactive menu: Install / Uninstall / Reconfigure / Backup History
 - ✓ Choose which addons to install (Unix Theme, Billing, Player List, Custom Sort)
-- ✓ Automatic theme configuration (name, logo, favicon)
-- ✓ Complete PayPal setup automation (Client ID, Secret, Stripe keys)
-- ✓ Automatic .env configuration with all settings
-- ✓ Full dependency installation with user prompt
-- ✓ Automatic backup before installation
-- ✓ Production-ready with error handling
+- ✓ Complete PayPal setup (Client ID, Secret, mode selection)
+- ✓ Stripe integration setup (optional)
+- ✓ Theme customization (app name, logo, favicon, background)
+- ✓ Automatic backup before any changes
+- ✓ One-command restore from backup
+- ✓ Dependency installation with user prompt
 
-### Alternative: Quick Manager (Install/Uninstall Only)
-
-For faster installation without interactive setup:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-manager.sh | sudo bash
-```
-
-Features:
-- ✓ Full automation with all dependencies
-- ✓ Automatic backup before installation
-- ✓ Interactive menu (install/uninstall/backup history)
-- ✓ One-command uninstall with automatic restore
+**Curl mode features:**
+- ✓ Full automated installation
+- ✓ Installs all components by default
+- ✓ Auto-configures PayPal/Stripe with defaults
+- ✓ Automatic backup and setup
 
 ### Manual Installation (Alternative)
 
