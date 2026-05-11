@@ -23,7 +23,8 @@ use Pterodactyl\Classes\SourceQuery\Exception\SocketException;
  * @uses xPaw\SourceQuery\Exception\InvalidPacketException
  * @uses xPaw\SourceQuery\Exception\SocketException
  */
-abstract class BaseSocket
+abstract #[\AllowDynamicProperties]
+class BaseSocket
 {
     /** @var resource */
     public $Socket;

@@ -870,6 +870,225 @@ register_provider() {
     return 1
 }
 
+################################################################################
+# patch_addon_routes — auto-insert route blocks documented in each PanelEdit.txt
+# Uses BEGIN/END marker comments so re-runs are idempotent (no duplicate routes).
+################################################################################
+
+_marker_present() {
+    # _marker_present <file> <marker>
+    grep -Fq "$2" "$1" 2>/dev/null
+}
+
+_append_block_if_missing() {
+    # _append_block_if_missing <file> <marker> <heredoc-block>
+    local file="$1"
+    local marker="$2"
+    local block="$3"
+    if [ ! -f "$file" ]; then
+        warning "Cannot patch — $file missing"
+        return 1
+    fi
+    if _marker_present "$file" "$marker"; then
+        return 0
+    fi
+    {
+        echo ""
+        echo "// >>> $marker (managed by sourby-installer — do not edit)"
+        echo "$block"
+        echo "// <<< $marker"
+    } >> "$file"
+}
+
+_insert_after_pattern() {
+    # _insert_after_pattern <file> <pattern> <marker> <block>
+    local file="$1" pat="$2" marker="$3" block="$4"
+    if [ ! -f "$file" ]; then
+        warning "Cannot patch — $file missing"
+        return 1
+    fi
+    if _marker_present "$file" "$marker"; then
+        return 0
+    fi
+    if ! grep -q "$pat" "$file"; then
+        warning "Pattern not found in $file: $pat — skipping insertion"
+        return 1
+    fi
+    # Build a temp marker block, then sed-insert after first match
+    local tmpblock
+    tmpblock=$(mktemp)
+    {
+        echo "// >>> $marker (managed by sourby-installer)"
+        echo "$block"
+        echo "// <<< $marker"
+    } > "$tmpblock"
+    # Use awk for safe multi-line insertion
+    awk -v pat="$pat" -v blockfile="$tmpblock" '
+        BEGIN { while ((getline line < blockfile) > 0) blk = blk line "\n" }
+        { print; if (!done && index($0, pat) > 0) { printf "%s", blk; done=1 } }
+    ' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+    rm -f "$tmpblock"
+}
+
+patch_addon_routes() {
+    local routes_admin="$PTERODACTYL_PATH/routes/admin.php"
+    local routes_api_client="$PTERODACTYL_PATH/routes/api-client.php"
+    local wrapper="$PTERODACTYL_PATH/resources/views/templates/wrapper.blade.php"
+    local admin_blade="$PTERODACTYL_PATH/resources/views/layouts/admin.blade.php"
+
+    info "Patching addon routes & sidebar..."
+
+    # ----- Billing -----
+    if [ "$INSTALL_BILLING" -eq 1 ]; then
+        _append_block_if_missing "$routes_admin" "SOURBY:BILLING:ADMIN" \
+'/*
+| Sourby Billing - Shop admin routes (Endpoint: /admin/shop)
+*/
+Route::group(["prefix" => "shop"], function () {
+    Route::group(["prefix" => "settings"], function () {
+        Route::get("/payments", [Admin\Shop\SettingsController::class, "payments"])->name("admin.shop.settings.payments");
+        Route::get("/servers", [Admin\Shop\SettingsController::class, "servers"])->name("admin.shop.settings.servers");
+        Route::get("/tos", [Admin\Shop\SettingsController::class, "tos"])->name("admin.shop.settings.tos");
+        Route::get("/invoice", [Admin\Shop\SettingsController::class, "invoice"])->name("admin.shop.settings.invoice");
+        Route::post("/payments", [Admin\Shop\SettingsController::class, "savePayments"]);
+        Route::post("/settings", [Admin\Shop\SettingsController::class, "saveSettings"])->name("admin.shop.settings");
+        Route::post("/servers", [Admin\Shop\SettingsController::class, "saveServerSettings"]);
+        Route::post("/tos", [Admin\Shop\SettingsController::class, "saveTos"]);
+        Route::post("/invoice", [Admin\Shop\SettingsController::class, "saveInvoice"]);
+    });
+    Route::group(["prefix" => "payments"], function () {
+        Route::get("/", [Admin\Shop\PaymentsController::class, "index"])->name("admin.shop.payments");
+        Route::get("/invoice/{id}", [Admin\Shop\PaymentsController::class, "viewInvoice"])->name("admin.shop.payments.invoice");
+    });
+    Route::group(["prefix" => "categories"], function () {
+        Route::get("/", [Admin\Shop\CategoriesController::class, "index"])->name("admin.shop.categories");
+        Route::get("/games", [Admin\Shop\GamesController::class, "index"])->name("admin.shop.categories.games.categories");
+        Route::post("/create", [Admin\Shop\CategoriesController::class, "create"])->name("admin.shop.categories.create");
+        Route::delete("/delete", [Admin\Shop\CategoriesController::class, "delete"])->name("admin.shop.categories.delete");
+        Route::group(["prefix" => "{id}"], function () {
+            Route::get("/edit", [Admin\Shop\CategoriesController::class, "edit"])->name("admin.shop.categories.edit");
+            Route::post("/edit", [Admin\Shop\CategoriesController::class, "update"]);
+            Route::group(["prefix" => "games"], function () {
+                Route::get("/", [Admin\Shop\GamesController::class, "games"])->name("admin.shop.categories.games");
+                Route::get("/create", [Admin\Shop\GamesController::class, "create"])->name("admin.shop.categories.games.create");
+                Route::get("/{gameId}/edit", [Admin\Shop\GamesController::class, "edit"])->name("admin.shop.categories.games.edit");
+                Route::post("/create", [Admin\Shop\GamesController::class, "store"]);
+                Route::post("/{gameId}/edit", [Admin\Shop\GamesController::class, "update"]);
+                Route::post("/{gameId}/move", [Admin\Shop\GamesController::class, "move"])->name("admin.shop.categories.games.move");
+                Route::delete("/delete", [Admin\Shop\GamesController::class, "delete"])->name("admin.shop.categories.games.delete");
+            });
+        });
+    });
+});' && success "billing admin routes patched"
+
+        _append_block_if_missing "$routes_api_client" "SOURBY:BILLING:API" \
+'Route::get("/personal", [Client\PersonalSettingsController::class, "index"]);
+Route::post("/personal", [Client\PersonalSettingsController::class, "savePersonalSettings"]);
+
+Route::group(["prefix" => "/shop"], function () {
+    Route::get("/categories", [Client\Shop\ShopController::class, "categories"]);
+    Route::get("/categories/{category}", [Client\Shop\ShopController::class, "games"]);
+    Route::get("/payment/invoice/{id}", [Client\Shop\PaymentController::class, "viewInvoice"]);
+    Route::post("/order", [Client\Shop\ShopController::class, "order"]);
+    Route::post("/payment", [Client\Shop\PaymentController::class, "getDetails"]);
+    Route::post("/payment/paypal", [Client\Shop\PaymentController::class, "paypal"]);
+    Route::post("/payment/stripe", [Client\Shop\PaymentController::class, "stripe"]);
+});' && success "billing api-client routes patched"
+    fi
+
+    # ----- Player List -----
+    if [ "$INSTALL_PLAYERS" -eq 1 ]; then
+        _append_block_if_missing "$routes_admin" "SOURBY:PLAYERS:ADMIN" \
+'use Pterodactyl\Http\Controllers\Admin\PlayerCounterController;
+Route::group(["prefix" => "players"], function () {
+    Route::get("/", [PlayerCounterController::class, "index"])->name("admin.sourby.players");
+    Route::post("/create", [PlayerCounterController::class, "create"])->name("admin.sourby.players.create");
+    Route::post("/update", [PlayerCounterController::class, "update"])->name("admin.sourby.players.update");
+    Route::delete("/delete", [PlayerCounterController::class, "delete"])->name("admin.sourby.players.delete");
+});' && success "player list admin routes patched"
+
+        _append_block_if_missing "$routes_api_client" "SOURBY:PLAYERS:API" \
+'use Pterodactyl\Http\Controllers\Api\Client\Servers\PlayersController;
+Route::get("/players", [PlayersController::class, "index"]);' && success "player list api-client routes patched"
+    fi
+
+    # ----- Custom Sort: wrapper.blade.php JS tag -----
+    if [ "$INSTALL_SORT" -eq 1 ] && [ -f "$wrapper" ]; then
+        if ! grep -q "customserversort.js" "$wrapper"; then
+            local sort_tag='        <script src="/themes/sourby/js/customserversort.js"></script>'
+            if grep -q "asset->js('main.js')" "$wrapper"; then
+                awk -v ins="$sort_tag" '
+                    { print; if (!done && index($0, "asset->js(\047main.js\047)") > 0) { print ins; done=1 } }
+                ' "$wrapper" > "$wrapper.tmp" && mv "$wrapper.tmp" "$wrapper"
+            else
+                awk -v ins="$sort_tag" '
+                    { if (!done && index($0, "</body>") > 0) { print ins; done=1 } print }
+                ' "$wrapper" > "$wrapper.tmp" && mv "$wrapper.tmp" "$wrapper"
+            fi
+            success "custom sort script tag inserted into wrapper.blade.php"
+        fi
+    fi
+
+    # ----- Sidebar menu (admin.blade.php) — Shop + Player Counter links -----
+    if [ -f "$admin_blade" ]; then
+        if [ "$INSTALL_BILLING" -eq 1 ] && ! grep -q "SOURBY:SIDEBAR:SHOP" "$admin_blade"; then
+            local sidebar_shop_file
+            sidebar_shop_file=$(mktemp)
+            cat > "$sidebar_shop_file" <<'SIDEBAR_SHOP_EOF'
+        {{-- SOURBY:SIDEBAR:SHOP --}}
+        <li class="header">SHOP MANAGEMENT</li>
+        <li class="{{ ! starts_with(Route::currentRouteName(), 'admin.shop.settings') ?: 'active' }}"><a href="{{ route('admin.shop.settings.payments') }}"><i class="fa fa-cog"></i> <span>Settings</span></a></li>
+        <li class="{{ ! starts_with(Route::currentRouteName(), 'admin.shop.categories') || starts_with(Route::currentRouteName(), 'admin.shop.categories.games') ?: 'active' }}"><a href="{{ route('admin.shop.categories') }}"><i class="fa fa-list"></i> <span>Categories</span></a></li>
+        <li class="{{ ! starts_with(Route::currentRouteName(), 'admin.shop.categories.games') ?: 'active' }}"><a href="{{ route('admin.shop.categories.games.categories') }}"><i class="fa fa-play"></i> <span>Games</span></a></li>
+        <li class="{{ ! starts_with(Route::currentRouteName(), 'admin.shop.payments') ?: 'active' }}"><a href="{{ route('admin.shop.payments') }}"><i class="fa fa-money"></i> <span>Payments</span></a></li>
+SIDEBAR_SHOP_EOF
+            if grep -q "SERVICE MANAGEMENT" "$admin_blade"; then
+                awk -v insfile="$sidebar_shop_file" '
+                    BEGIN { while ((getline line < insfile) > 0) blk = blk line "\n" }
+                    { if (!done && index($0, "SERVICE MANAGEMENT") > 0) { printf "%s", blk; done=1 } print }
+                ' "$admin_blade" > "$admin_blade.tmp" && mv "$admin_blade.tmp" "$admin_blade"
+                success "sidebar SHOP MANAGEMENT block inserted"
+            fi
+            rm -f "$sidebar_shop_file"
+        fi
+        if [ "$INSTALL_PLAYERS" -eq 1 ] && ! grep -q "SOURBY:SIDEBAR:PLAYERS" "$admin_blade"; then
+            local sidebar_players_file
+            sidebar_players_file=$(mktemp)
+            cat > "$sidebar_players_file" <<'SIDEBAR_PLAYERS_EOF'
+        {{-- SOURBY:SIDEBAR:PLAYERS --}}
+        <li class="{{ ! starts_with(Route::currentRouteName(), 'admin.sourby.players') ?: 'active' }}"><a href="{{ route('admin.sourby.players') }}"><i class="fa fa-user"></i> <span>Player Counter</span></a></li>
+SIDEBAR_PLAYERS_EOF
+            if grep -q "SERVICE MANAGEMENT" "$admin_blade"; then
+                awk -v insfile="$sidebar_players_file" '
+                    BEGIN { while ((getline line < insfile) > 0) blk = blk line "\n" }
+                    { if (!done && index($0, "SERVICE MANAGEMENT") > 0) { printf "%s", blk; done=1 } print }
+                ' "$admin_blade" > "$admin_blade.tmp" && mv "$admin_blade.tmp" "$admin_blade"
+                success "sidebar Player Counter link inserted"
+            fi
+            rm -f "$sidebar_players_file"
+        fi
+    fi
+
+    # ----- composer deps for billing -----
+    if [ "$INSTALL_BILLING" -eq 1 ]; then
+        info "Installing billing composer deps (laraveldaily/laravel-invoices, paypal/rest-api-sdk-php)..."
+        cd "$PTERODACTYL_PATH"
+        composer require laraveldaily/laravel-invoices:^3.0 paypal/rest-api-sdk-php:* --no-interaction 2>&1 | tail -2 || \
+            warning "Some billing deps failed — install manually"
+        mkdir -p "$PTERODACTYL_PATH/storage/app/invoices"
+    fi
+
+    # ----- composer dep for player list (gameq) -----
+    if [ "$INSTALL_PLAYERS" -eq 1 ]; then
+        info "Installing player counter composer dep (austinb/gameq)..."
+        cd "$PTERODACTYL_PATH"
+        composer require austinb/gameq:~3.0 --no-interaction 2>&1 | tail -2 || \
+            warning "gameq install failed — install manually"
+    fi
+
+    output ""
+}
+
 run_migrations() {
     info "Running migrations..."
     cd "$PTERODACTYL_PATH"
@@ -972,6 +1191,7 @@ run_ui() {
             install_dependencies
             update_env
             register_provider || return
+            patch_addon_routes
             run_migrations
             build_frontend
             clear_caches
@@ -995,6 +1215,7 @@ run_ui() {
             install_dependencies
             update_env
             register_provider || return
+            patch_addon_routes
             run_migrations
             build_frontend
             clear_caches
@@ -1008,6 +1229,7 @@ run_ui() {
             create_backup
             download_sourby
             install_addons "theme billing players sort"
+            patch_addon_routes
             build_frontend
             clear_caches
 
@@ -1139,5 +1361,5 @@ export -f configure_panel configure_components build_component_string configure_
 export -f check_root check_dependencies validate_pterodactyl detect_os install_pkg
 export -f ensure_backup_dir create_backup list_backups restore_from_backup
 export -f download_sourby install_addons install_dependencies
-export -f update_env set_env register_provider run_migrations build_frontend clear_caches
+export -f update_env set_env register_provider patch_addon_routes run_migrations build_frontend clear_caches
 export -f update_lib_source run_ui show_completion_summary verify_install

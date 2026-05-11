@@ -8,6 +8,7 @@ use Pterodactyl\Http\Controllers\Controller;
 use Pterodactyl\Contracts\Repository\SettingsRepositoryInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
+#[\AllowDynamicProperties]
 class PaymentsController extends Controller
 {
     /**

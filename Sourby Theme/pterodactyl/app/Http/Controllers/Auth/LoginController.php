@@ -13,27 +13,40 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class LoginController extends AbstractLoginController
 {
+    /**
+     * Handle all incoming requests for the authentication routes and render the
+     * base authentication view component. React will take over at this point and
+     * turn the login area into an SPA.
+     */
     public function index(): View
     {
         return view('templates/auth.core');
     }
 
+    /**
+     * Handle a login request to the application.
+     *
+     * @throws \Pterodactyl\Exceptions\DisplayException
+     * @throws \Illuminate\Validation\ValidationException
+     */
     public function login(Request $request): JsonResponse
     {
         if ($this->hasTooManyLoginAttempts($request)) {
             $this->fireLockoutEvent($request);
-            return $this->sendLockoutResponse($request);
+            $this->sendLockoutResponse($request);
         }
 
         try {
             $username = $request->input('user');
+
+            /** @var User $user */
             $user = User::query()->where($this->getField($username), $username)->firstOrFail();
         } catch (ModelNotFoundException) {
-            return $this->sendFailedLoginResponse($request);
+            $this->sendFailedLoginResponse($request);
         }
 
         if (!password_verify($request->input('password'), $user->password)) {
-            return $this->sendFailedLoginResponse($request, $user);
+            $this->sendFailedLoginResponse($request, $user);
         }
 
         if (!$user->use_totp) {

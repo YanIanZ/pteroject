@@ -7,14 +7,10 @@ use Pterodactyl\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Pterodactyl\Models\UnixSetting;
 
+#[\AllowDynamicProperties]
 class AdvancedController extends Controller
 {
-	/**
-	 * @var \Pterodactyl\Contracts\Repository\LocationRepositoryInterface
-	 */
-	protected $repository;
-
-	/**
+/**
 	 * LocationController constructor.
 	 *
 	 * @param \Pterodactyl\Contracts\Repository\LocationRepositoryInterface $repository

@@ -17,6 +17,7 @@ use Pterodactyl\Http\Controllers\Api\Client\ClientApiController;
 use Pterodactyl\Contracts\Repository\SettingsRepositoryInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
+#[\AllowDynamicProperties]
 class PaymentController extends ClientApiController
 {
     /**

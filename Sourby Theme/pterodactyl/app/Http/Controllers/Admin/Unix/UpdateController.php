@@ -6,14 +6,10 @@ use Pterodactyl\Contracts\Repository\LocationRepositoryInterface;
 use Pterodactyl\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
+#[\AllowDynamicProperties]
 class UpdateController extends Controller
 {
-	/**
-	 * @var \Pterodactyl\Contracts\Repository\LocationRepositoryInterface
-	 */
-	protected $repository;
-
-	/**
+/**
 	 * LocationController constructor.
 	 *
 	 * @param \Pterodactyl\Contracts\Repository\LocationRepositoryInterface $repository

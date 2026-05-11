@@ -4,6 +4,7 @@ namespace Pterodactyl\Classes;
 
 use Pterodactyl\Classes\Exceptions\MinecraftQueryException;
 
+#[\AllowDynamicProperties]
 class MinecraftQuery
 {
     /*

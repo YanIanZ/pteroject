@@ -9,6 +9,7 @@ use Pterodactyl\Exceptions\DisplayException;
 use Pterodactyl\Http\Controllers\Controller;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
+#[\AllowDynamicProperties]
 class CategoriesController extends Controller
 {
     /**

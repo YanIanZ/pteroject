@@ -1,6 +1,7 @@
 <?php
 /**
- * This class provides the public interface to the PHP-Source-Query library.
+ * This #[\AllowDynamicProperties]
+class provides the public interface to the PHP-Source-Query library.
  *
  * @author Pavel Djundik
  *

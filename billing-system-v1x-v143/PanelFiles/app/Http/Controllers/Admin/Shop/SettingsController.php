@@ -8,6 +8,7 @@ use Pterodactyl\Exceptions\DisplayException;
 use Pterodactyl\Http\Controllers\Controller;
 use Pterodactyl\Contracts\Repository\SettingsRepositoryInterface;
 
+#[\AllowDynamicProperties]
 class SettingsController extends Controller
 {
     /**

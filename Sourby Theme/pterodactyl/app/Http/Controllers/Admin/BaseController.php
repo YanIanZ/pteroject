@@ -8,8 +8,16 @@ use Pterodactyl\Services\Helpers\SoftwareVersionService;
 
 class BaseController extends Controller
 {
-    public function __construct(private readonly SoftwareVersionService $version) {}
+    /**
+     * BaseController constructor.
+     */
+    public function __construct(private SoftwareVersionService $version)
+    {
+    }
 
+    /**
+     * Return the admin index view.
+     */
     public function index(): View
     {
         return view('admin.index', ['version' => $this->version]);

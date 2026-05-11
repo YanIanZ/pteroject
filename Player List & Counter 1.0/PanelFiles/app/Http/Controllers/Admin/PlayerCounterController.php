@@ -9,6 +9,7 @@ use Prologue\Alerts\AlertsMessageBag;
 use Pterodactyl\Exceptions\DisplayException;
 use Pterodactyl\Http\Controllers\Controller;
 
+#[\AllowDynamicProperties]
 class PlayerCounterController extends Controller
 {
     /**

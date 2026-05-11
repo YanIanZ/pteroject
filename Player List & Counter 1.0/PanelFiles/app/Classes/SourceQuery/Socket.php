@@ -23,7 +23,8 @@
 	 * @uses xPaw\SourceQuery\Exception\InvalidPacketException
 	 * @uses xPaw\SourceQuery\Exception\SocketException
 	 */
-	class Socket extends BaseSocket
+	#[\AllowDynamicProperties]
+class Socket extends BaseSocket
 	{
 		public function Close( ) : void
 		{

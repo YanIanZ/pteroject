@@ -25,6 +25,7 @@ use Pterodactyl\Classes\SourceQuery\Exception\SocketException;
  * @uses App\SourceQuery\Exception\InvalidPacketException
  * @uses App\SourceQuery\Exception\SocketException
  */
+#[\AllowDynamicProperties]
 class SourceRcon
 {
     /**

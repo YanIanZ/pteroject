@@ -13,6 +13,7 @@ use Pterodactyl\Http\Controllers\Api\Client\ClientApiController;
 use Pterodactyl\Contracts\Repository\SettingsRepositoryInterface;
 use Pterodactyl\Services\Servers\SuspensionService;
 
+#[\AllowDynamicProperties]
 class ServerRenewController extends ClientApiController
 {
     /**

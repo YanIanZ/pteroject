@@ -21,6 +21,7 @@ use Pterodactyl\Classes\SourceQuery\Exception\InvalidPacketException;
  *
  * @uses xPaw\SourceQuery\Exception\InvalidPacketException
  */
+#[\AllowDynamicProperties]
 class Buffer
 {
     /**

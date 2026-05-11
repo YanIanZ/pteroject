@@ -16,6 +16,7 @@ use Pterodactyl\Contracts\Repository\SettingsRepositoryInterface;
 use Pterodactyl\Exceptions\Service\Deployment\NoViableNodeException;
 use Pterodactyl\Exceptions\Service\Deployment\NoViableAllocationException;
 
+#[\AllowDynamicProperties]
 class ShopController extends ClientApiController
 {
     /**

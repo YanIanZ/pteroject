@@ -7,6 +7,7 @@ use Pterodactyl\Classes\Countries;
 use Pterodactyl\Exceptions\DisplayException;
 use Pterodactyl\Http\Requests\Api\Client\Account\PersonalSettingsRequest;
 
+#[\AllowDynamicProperties]
 class PersonalSettingsController extends ClientApiController
 {
     /**
