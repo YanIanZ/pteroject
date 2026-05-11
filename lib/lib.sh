@@ -548,6 +548,7 @@ restore_from_backup() {
 
 download_sourby() {
     info "Downloading Sourby from GitHub..."
+    rm -rf "$DOWNLOAD_DIR"
     mkdir -p "$DOWNLOAD_DIR"
     cd "$DOWNLOAD_DIR"
 
@@ -563,9 +564,9 @@ download_sourby() {
 
     info "Extracting..."
     unzip -oq sourby.zip
-    EXTRACTED_DIR="pteroject-${GITHUB_BRANCH}"
+    EXTRACTED_DIR="$DOWNLOAD_DIR/pteroject-${GITHUB_BRANCH}"
     if [ ! -d "$EXTRACTED_DIR" ]; then
-        error "Extraction failed"
+        error "Extraction failed — expected $EXTRACTED_DIR"
         exit 1
     fi
     success "Extracted"
@@ -579,39 +580,69 @@ download_sourby() {
 install_addons() {
     local components="$1"
 
-    info "Installing selected components..."
+    if [ ! -d "$EXTRACTED_DIR" ]; then
+        error "Extracted directory not found: $EXTRACTED_DIR"
+        warning "Download may have failed. Check your internet connection."
+        exit 1
+    fi
+
+    info "Installing selected components (from $EXTRACTED_DIR)..."
     output ""
+    local installed=0
 
     if [[ "$components" == *"theme"* ]]; then
-        if [ -d "$EXTRACTED_DIR/Unix Theme v2/pterodactyl" ]; then
+        local theme_dir="$EXTRACTED_DIR/Unix Theme v2/pterodactyl"
+        if [ -d "$theme_dir" ]; then
             info "Installing Unix Theme v2..."
-            cp -r "$EXTRACTED_DIR/Unix Theme v2/pterodactyl"/* "$PTERODACTYL_PATH/"
+            cp -r "$theme_dir"/* "$PTERODACTYL_PATH/"
             success "Unix Theme v2 installed"
+            installed=1
+        else
+            warning "Unix Theme v2 not found at $theme_dir"
         fi
     fi
 
     if [[ "$components" == *"billing"* ]]; then
-        if [ -d "$EXTRACTED_DIR/billing-system-v1x-v143/PanelFiles" ]; then
+        local billing_dir="$EXTRACTED_DIR/billing-system-v1x-v143/PanelFiles"
+        if [ -d "$billing_dir" ]; then
             info "Installing Billing System..."
-            cp -r "$EXTRACTED_DIR/billing-system-v1x-v143/PanelFiles"/* "$PTERODACTYL_PATH/"
+            cp -r "$billing_dir"/* "$PTERODACTYL_PATH/"
             success "Billing System installed"
+            installed=1
+        else
+            warning "Billing System not found at $billing_dir"
         fi
     fi
 
     if [[ "$components" == *"players"* ]]; then
-        if [ -d "$EXTRACTED_DIR/Player List & Counter 1.0/PanelFiles" ]; then
+        local players_dir="$EXTRACTED_DIR/Player List & Counter 1.0/PanelFiles"
+        if [ -d "$players_dir" ]; then
             info "Installing Player List addon..."
-            cp -r "$EXTRACTED_DIR/Player List & Counter 1.0/PanelFiles"/* "$PTERODACTYL_PATH/"
+            cp -r "$players_dir"/* "$PTERODACTYL_PATH/"
             success "Player List addon installed"
+            installed=1
+        else
+            warning "Player List not found at $players_dir"
         fi
     fi
 
     if [[ "$components" == *"sort"* ]]; then
-        if [ -d "$EXTRACTED_DIR/custom-server-sort-v103" ]; then
+        local sort_dir="$EXTRACTED_DIR/custom-server-sort-v103"
+        if [ -d "$sort_dir" ]; then
             info "Installing Custom Server Sort..."
-            find "$EXTRACTED_DIR/custom-server-sort-v103" -type f ! -name "PanelEdit.txt" ! -name "README.md" -exec bash -c 'rel="${1#'"$EXTRACTED_DIR/custom-server-sort-v103/"'}"; mkdir -p "$PTERODACTYL_PATH/${rel%/*}"; cp "$1" "$PTERODACTYL_PATH/$rel"' _ {} \;
+            find "$sort_dir" -type f ! -name "PanelEdit.txt" ! -name "README.md" -exec bash -c 'rel="${1#'"$sort_dir"'/}"; mkdir -p "$PTERODACTYL_PATH/${rel%/*}"; cp "$1" "$PTERODACTYL_PATH/$rel"' _ {} \;
             success "Custom Server Sort installed"
+            installed=1
+        else
+            warning "Custom Server Sort not found at $sort_dir"
         fi
+    fi
+
+    if [ "$installed" -eq 0 ]; then
+        error "No addon directories found in the downloaded package."
+        error "Extracted contents at $EXTRACTED_DIR:"
+        ls -la "$EXTRACTED_DIR" 2>/dev/null || warning "(directory empty or missing)"
+        exit 1
     fi
 
     output ""
