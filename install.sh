@@ -93,6 +93,16 @@ execute() {
 #==============================================================================
 welcome ""
 
+# In piped mode (curl | bash), stdin is the pipe — can't show interactive menu.
+# Auto-install everything instead.
+if [ "$RUNNING_PIPED" = true ]; then
+    output "${YELLOW}Piped mode detected — auto-installing all components...${NC}"
+    output ""
+    execute "install"
+    rm -f /tmp/sourby-lib.sh
+    exit 0
+fi
+
 done=false
 while [ "$done" == false ]; do
     options=(
@@ -126,7 +136,7 @@ while [ "$done" == false ]; do
 
     output ""
     echo -n "* Input 0-$((${#actions[@]} - 1)): "
-    read -r action || true
+    read -r action </dev/tty || true
 
     max_idx=$((${#actions[@]} - 1))
 
