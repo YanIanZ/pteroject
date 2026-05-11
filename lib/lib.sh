@@ -349,18 +349,17 @@ register_provider() {
 
     local bootstrap_file="$PTERODACTYL_PATH/bootstrap/app.php"
     local config_file="$PTERODACTYL_PATH/config/app.php"
-    local provider_class="Pterodactyl\\Providers\\SourbyThemeServiceProvider::class"
+    local provider_class="Pterodactyl\Providers\SourbyThemeServiceProvider::class"
 
     # Try bootstrap/app.php first (Laravel 11)
     if [ -f "$bootstrap_file" ]; then
         if ! grep -q "SourbyThemeServiceProvider" "$bootstrap_file"; then
-            info "Registering in bootstrap/app.php..."
-            # Find withProviders line and add provider
-            sed -i "/->withProviders(\[/a\        $provider_class," "$bootstrap_file" || \
-            sed -i "/->withProviders(/a\        $provider_class," "$bootstrap_file" || true
-            success "Provider registered in bootstrap/app.php"
+            info "Auto-registering in bootstrap/app.php..."
+            # Add provider after withProviders([
+            sed -i "/->withProviders(\[/a\        $provider_class," "$bootstrap_file" 2>/dev/null || true
+            success "Service provider registered in bootstrap/app.php"
         else
-            success "Provider already registered in bootstrap/app.php"
+            success "Service provider already registered"
         fi
         output ""
         return 0
@@ -369,25 +368,23 @@ register_provider() {
     # Fallback to config/app.php (Laravel 10)
     if [ -f "$config_file" ]; then
         if ! grep -q "SourbyThemeServiceProvider" "$config_file"; then
-            info "Registering in config/app.php..."
-            # Find providers array and add provider
-            sed -i "/'providers' => \[/a\        $provider_class," "$config_file" || \
-            sed -i "/Providers::/a\        $provider_class," "$config_file" || true
-            success "Provider registered in config/app.php"
+            info "Auto-registering in config/app.php..."
+            # Add provider after 'providers' => [
+            sed -i "/'providers' => \[/a\        $provider_class," "$config_file" 2>/dev/null || true
+            success "Service provider registered in config/app.php"
         else
-            success "Provider already registered in config/app.php"
+            success "Service provider already registered"
         fi
         output ""
         return 0
     fi
 
-    warning "Could not find bootstrap/app.php or config/app.php"
-    warning "Please manually add to your Pterodactyl config:"
+    error "Could not find bootstrap/app.php or config/app.php"
+    error "Please manually add to your Pterodactyl config:"
     echo "  $provider_class"
     output ""
     return 1
 }
-
 run_migrations() {
     info "Running migrations..."
     cd "$PTERODACTYL_PATH"
