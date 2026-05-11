@@ -1146,14 +1146,40 @@ run_migrations() {
     info "Running migrations..."
     cd "$PTERODACTYL_PATH"
 
-    # Use -v for the migration name on each step. On failure re-run with -vvv
-    # to surface the full stack so we can identify the offending migration file.
-    if ! php artisan migrate --force -v; then
-        warning "Migration run failed — re-running with full trace to identify the offending file"
-        php artisan migrate --force -vvv 2>&1 | tail -60
-        error "Migrations failed"
-        exit 1
+    # Remove deprecated sourby_settings migration file + db row if present
+    # (it caused Array-to-string errors on Laravel 11; SourbyThemeComposer is
+    # now tolerant of the missing table so the migration is no longer needed).
+    rm -f "$PTERODACTYL_PATH/database/migrations/2024_01_01_000000_create_sourby_settings_table.php"
+    php artisan tinker --execute="try { DB::table('migrations')->where('migration','2024_01_01_000000_create_sourby_settings_table')->delete(); } catch (\Throwable \$e) {}" 2>/dev/null || true
+
+    # Run each pending migration individually so a failing file is named in
+    # the output. Otherwise Laravel buries it behind "+22 vendor frames".
+    local pending
+    pending=$(php artisan migrate:status --pending 2>/dev/null | awk '/^\|/ && !/Pending|---/ {gsub(/^\| *| *\|$/, ""); split($0, a, "|"); print a[1]}' | sed 's/ *$//' | grep -v '^$' || true)
+
+    if [ -z "$pending" ]; then
+        info "No pending migrations — running migrate anyway to be safe..."
+        php artisan migrate --force 2>&1 | tail -10
+    else
+        local failures=0
+        while IFS= read -r mig; do
+            [ -z "$mig" ] && continue
+            info "Migrating: $mig"
+            if ! php artisan migrate --force --path="database/migrations/${mig}.php" 2>&1 | tail -8; then
+                error "FAILED migration: $mig"
+                failures=$((failures + 1))
+            fi
+        done <<< "$pending"
+
+        if [ "$failures" -gt 0 ]; then
+            error "$failures migration(s) failed"
+            warning "If the failures are from addon migrations on Laravel 11, run:"
+            warning "  cd $PTERODACTYL_PATH && php artisan migrate --force -vvv"
+            warning "to see the exact stack trace and report the file name."
+            exit 1
+        fi
     fi
+
     success "Migrations completed"
     output ""
 }
