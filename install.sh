@@ -128,11 +128,15 @@ while [ "$done" == false ]; do
     echo -n "* Input 0-$((${#actions[@]} - 1)): "
     read -r action
 
-    [ -z "$action" ] && output "Input is required" && continue
+    max_idx=$((${#actions[@]} - 1))
 
-    valid_input=("$(for ((i = 0; i <= ${#actions[@]} - 1; i += 1)); do echo "${i}"; done)")
-    if [[ ! " ${valid_input[*]} " =~ ${action} ]]; then
-        output "Invalid option. Please enter 0-$((${#actions[@]} - 1))."
+    if [ -z "$action" ]; then
+        output "Input is required"
+        continue
+    fi
+
+    if ! [[ "$action" =~ ^[0-9]+$ ]] || [ "$action" -lt 0 ] || [ "$action" -gt "$max_idx" ]; then
+        output "Invalid option. Please enter 0-$max_idx."
         continue
     fi
 
