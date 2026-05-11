@@ -253,7 +253,7 @@ configure_payments() {
 }
 
 # ============================================================================
-# VALIDATION FUNCTIONS
+# VALIDATION & DEPENDENCY AUTO-INSTALL
 # ============================================================================
 
 check_root() {
@@ -263,16 +263,152 @@ check_root() {
     fi
 }
 
+detect_os() {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS="$ID"
+    elif [ -f /etc/debian_version ]; then
+        OS="debian"
+    elif [ -f /etc/redhat-release ]; then
+        OS="rhel"
+    else
+        OS="unknown"
+    fi
+}
+
+install_pkg() {
+    case "$OS" in
+        ubuntu|debian) apt-get install -y -qq "$@" 2>/dev/null ;;
+        rhel|centos|fedora|rocky|almalinux)
+            if command -v dnf &>/dev/null; then dnf install -y -q "$@"
+            else yum install -y -q "$@"; fi ;;
+        *) return 1 ;;
+    esac
+}
+
 check_dependencies() {
     info "Checking dependencies..."
+    detect_os
 
-    for cmd in curl unzip php composer git yarn; do
-        if ! command -v "$cmd" &> /dev/null; then
-            error "$cmd not found. Please install it and try again."
+    local missing=()
+    local need_node_update=false
+    local need_php_ext=false
+
+    # curl
+    if ! command -v curl &>/dev/null; then
+        missing+=("curl")
+    fi
+
+    # unzip
+    if ! command -v unzip &>/dev/null; then
+        missing+=("unzip")
+    fi
+
+    # git
+    if ! command -v git &>/dev/null; then
+        missing+=("git")
+    fi
+
+    # System packages
+    if [ ${#missing[@]} -gt 0 ]; then
+        output ""
+        warning "Missing: ${missing[*]}"
+        if [ "$OS" != "unknown" ] && read_yn "Install them automatically?" 1; then
+            install_pkg "${missing[@]}" && success "System packages installed" || {
+                error "Failed to install: ${missing[*]}"
+                exit 1
+            }
+        else
+            error "Install missing packages and try again: ${missing[*]}"
             exit 1
         fi
-        success "$cmd found"
-    done
+    fi
+
+    # PHP + extensions
+    if ! command -v php &>/dev/null; then
+        output ""
+        warning "PHP not found."
+        if [ "$OS" != "unknown" ] && read_yn "Install PHP 8.2 and required extensions?" 1; then
+            case "$OS" in
+                ubuntu|debian)
+                    add-apt-repository -y ppa:ondrej/php 2>/dev/null || true
+                    apt-get update -qq 2>/dev/null
+                    install_pkg php8.2 php8.2-cli php8.2-common php8.2-mysql php8.2-gd php8.2-mbstring php8.2-bcmath php8.2-xml php8.2-curl php8.2-zip
+                    ;;
+                rhel|centos|fedora|rocky|almalinux)
+                    install_pkg php82 php82-cli php82-common php82-mysqlnd php82-gd php82-mbstring php82-bcmath php82-xml php82-curl php82-zip
+                    ;;
+                *) error "Cannot auto-install PHP on $OS. Install manually."; exit 1 ;;
+            esac
+        else
+            error "PHP is required. Install and try again."
+            exit 1
+        fi
+    fi
+    success "php $(php -v 2>/dev/null | head -1 | awk '{print $2}')"
+
+    # Node.js
+    if command -v node &>/dev/null; then
+        local node_ver=$(node -v 2>/dev/null | sed 's/v//' | cut -d. -f1)
+        if [ "$node_ver" -lt 22 ] 2>/dev/null; then
+            output ""
+            warning "Node.js $(node -v) is too old (>=22 required)."
+            if read_yn "Install Node.js 22 via NodeSource?" 1; then
+                curl -fsSL https://deb.nodesource.com/setup_22.x | bash - 2>/dev/null
+                install_pkg nodejs
+                success "Node.js $(node -v) installed"
+            fi
+        else
+            success "node $(node -v)"
+        fi
+    else
+        output ""
+        warning "Node.js not found."
+        if read_yn "Install Node.js 22 via NodeSource?" 1; then
+            curl -fsSL https://deb.nodesource.com/setup_22.x | bash - 2>/dev/null
+            install_pkg nodejs
+            success "Node.js $(node -v) installed"
+        else
+            error "Node.js >=22 is required."
+            exit 1
+        fi
+    fi
+
+    # Yarn
+    if ! command -v yarn &>/dev/null; then
+        output ""
+        warning "Yarn not found."
+        if read_yn "Install Yarn via npm?" 1; then
+            npm install -g yarn 2>/dev/null && success "yarn installed" || {
+                warning "npm install failed, trying corepack..."
+                corepack enable 2>/dev/null && corepack prepare yarn@stable --activate 2>/dev/null && success "yarn installed via corepack" || {
+                    error "Failed to install Yarn. Install manually: npm install -g yarn"
+                    exit 1
+                }
+            }
+        else
+            error "Yarn is required."
+            exit 1
+        fi
+    else
+        success "yarn $(yarn -v)"
+    fi
+
+    # Composer
+    if ! command -v composer &>/dev/null; then
+        output ""
+        warning "Composer not found."
+        if read_yn "Install Composer?" 1; then
+            curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer 2>/dev/null
+            success "composer $(composer --version 2>/dev/null | head -1 | awk '{print $3}')"
+        else
+            error "Composer is required."
+            exit 1
+        fi
+    else
+        success "composer $(composer --version 2>/dev/null | head -1 | awk '{print $3}')"
+    fi
+
     output ""
 }
 
@@ -834,7 +970,7 @@ verify_install() {
 export -f output error success info warning welcome divider
 export -f prompt read_input read_yn
 export -f configure_panel configure_components build_component_string configure_payments
-export -f check_root check_dependencies validate_pterodactyl
+export -f check_root check_dependencies validate_pterodactyl detect_os install_pkg
 export -f ensure_backup_dir create_backup list_backups restore_from_backup
 export -f download_sourby install_addons install_dependencies
 export -f update_env set_env register_provider run_migrations build_frontend clear_caches
