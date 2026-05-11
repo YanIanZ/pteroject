@@ -1,0 +1,383 @@
+## Sourby Billing System v1.0 — Installation for v1.12.2
+
+/routes/api-client.php
+Please paste this lines to /routes/api-client.php under the Route::delete('/api-keys/{identifier}', [Client\ApiKeyController::class, 'delete']); line
+
+Route::get('/personal', [Client\PersonalSettingsController::class, 'index']);
+Route::post('/personal', [Client\PersonalSettingsController::class, 'savePersonalSettings']);
+
+
+Please paste this lines to /routes/api-client.php under the Route::put('/docker-image', [Client\Servers\SettingsController::class, 'dockerImage']); line
+
+Route::get('/renew', [Client\Servers\ServerRenewController::class, 'index'])->withoutMiddleware([AuthenticateServerAccess::class]);
+Route::post('/renew', [Client\Servers\ServerRenewController::class, 'renew'])->withoutMiddleware([AuthenticateServerAccess::class]);
+
+
+Please paste this lines to /routes/api-client.php under the Route::get('/permissions', [Client\ClientController::class, 'permissions']); line 
+
+/*
+|--------------------------------------------------------------------------
+| Shop API
+|--------------------------------------------------------------------------
+|
+| Endpoint: /api/shop
+|
+*/
+Route::group(['prefix' => '/shop'], function () {
+    Route::get('/categories', [Client\Shop\ShopController::class, 'categories']);
+    Route::get('/categories/{category}', [Client\Shop\ShopController::class, 'games']);
+    Route::get('/payment/invoice/{id}', [Client\Shop\PaymentController::class, 'viewInvoice']);
+    Route::post('/order', [Client\Shop\ShopController::class, 'order']);
+
+    Route::post('/payment', [Client\Shop\PaymentController::class, 'getDetails']);
+    Route::post('/payment/paypal', [Client\Shop\PaymentController::class, 'paypal']);
+    Route::post('/payment/stripe', [Client\Shop\PaymentController::class, 'stripe']);
+});
+
+
+
+
+/routes/admin.php
+Please paste this file to /routes/admin.php bottom of the file
+
+/*
+|--------------------------------------------------------------------------
+| Shop Controller Routes
+|--------------------------------------------------------------------------
+|
+| Endpoint: /admin/shop
+|
+*/
+Route::group(['prefix' => 'shop'], function () {
+    Route::group(['prefix' => 'settings'], function () {
+        Route::get('/payments', [Admin\Shop\SettingsController::class, 'payments'])->name('admin.shop.settings.payments');
+        Route::get('/servers', [Admin\Shop\SettingsController::class, 'servers'])->name('admin.shop.settings.servers');
+        Route::get('/tos', [Admin\Shop\SettingsController::class, 'tos'])->name('admin.shop.settings.tos');
+        Route::get('/invoice', [Admin\Shop\SettingsController::class, 'invoice'])->name('admin.shop.settings.invoice');
+
+        Route::post('/payments', [Admin\Shop\SettingsController::class, 'savePayments']);
+        Route::post('/settings', [Admin\Shop\SettingsController::class, 'saveSettings'])->name('admin.shop.settings');
+        Route::post('/servers', [Admin\Shop\SettingsController::class, 'saveServerSettings']);
+        Route::post('/tos', [Admin\Shop\SettingsController::class, 'saveTos']);
+        Route::post('/invoice', [Admin\Shop\SettingsController::class, 'saveInvoice']);
+    });
+
+    Route::group(['prefix' => 'payments'], function () {
+        Route::get('/', [Admin\Shop\PaymentsController::class, 'index'])->name('admin.shop.payments');
+        Route::get('/invoice/{id}', [Admin\Shop\PaymentsController::class, 'viewInvoice'])->name('admin.shop.payments.invoice');
+    });
+
+    Route::group(['prefix' => 'categories'], function () {
+        Route::get('/', [Admin\Shop\CategoriesController::class, 'index'])->name('admin.shop.categories');
+        Route::get('/games', [Admin\Shop\GamesController::class, 'index'])->name('admin.shop.categories.games.categories');
+
+        Route::post('/create', [Admin\Shop\CategoriesController::class, 'create'])->name('admin.shop.categories.create');
+
+        Route::delete('/delete', [Admin\Shop\CategoriesController::class, 'delete'])->name('admin.shop.categories.delete');
+
+        Route::group(['prefix' => '{id}'], function () {
+            Route::get('/edit', [Admin\Shop\CategoriesController::class, 'edit'])->name('admin.shop.categories.edit');
+
+            Route::post('/edit', [Admin\Shop\CategoriesController::class, 'update']);
+
+            Route::group(['prefix' => 'games'], function () {
+                Route::get('/', [Admin\Shop\GamesController::class, 'games'])->name('admin.shop.categories.games');
+                Route::get('/create', [Admin\Shop\GamesController::class, 'create'])->name('admin.shop.categories.games.create');
+                Route::get('/{gameId}/edit', [Admin\Shop\GamesController::class, 'edit'])->name('admin.shop.categories.games.edit');
+
+                Route::post('/create', [Admin\Shop\GamesController::class, 'store']);
+                Route::post('/{gameId}/edit', [Admin\Shop\GamesController::class, 'update']);
+                Route::post('/{gameId}/move', [Admin\Shop\GamesController::class, 'move'])->name('admin.shop.categories.games.move');
+
+                Route::delete('/delete', [Admin\Shop\GamesController::class, 'delete'])->name('admin.shop.categories.games.delete');
+            });
+        });
+    });
+});
+
+
+
+
+/app/Http/Requests/Admin/UserFormRequest.php
+Please paste this lines to /app/Http/Requests/Admin/UserFormRequest.php under the 'root_admin', line
+
+'country',
+'address',
+'zip_code',
+'credit',
+
+
+
+
+/app/Models/User.php
+Please paste this lines to /app/Models/User.php under the 'root_admin', line
+
+'country',
+'address',
+'zip_code',
+'credit',
+
+
+Please paste this lines to /app/Models/User.php under the 'totp_secret' => 'nullable|string', line
+
+'country' => 'nullable|string',
+'address' => 'nullable|string',
+'zip_code' => 'nullable|string',
+'credit' => 'sometimes',
+
+
+
+
+/app/Services/Servers/DetailsModificationService.php
+Please paste this line to /app/Services/Servers/DetailsModificationService.php under the 'description' => Arr::get($data, 'description') ?? '', line
+
+'expired_at' => Arr::get($data, 'expired_at') ?? null,
+
+
+
+
+/app/Http/Controllers/Admin/ServersController.php
+Please paste this line to /app/Http/Controllers/Admin/ServersController.php under the 'owner_id', 'external_id', 'name', 'description', line
+
+'expired_at',
+
+
+
+
+/app/Console/Kernel.php
+Please paste this line to /app/Console/Kernel.php under the $schedule->command(CleanServiceBackupFilesCommand::class)->daily(); line
+
+$schedule->command(\Pterodactyl\Console\Commands\Server\DeleteExpiresServersCommand::class)->everyMinute();
+
+
+
+
+/config/filesystems.php
+Please paste this lines to /config/filesystems.php above the 's3' => [ line
+
+'invoices' => [
+	'driver' => 'local',
+	'root' => storage_path('app/invoices'),
+],
+
+
+
+
+/resources/views/admin/users/view.blade.php
+Please paste this lines to /resources/views/admin/users/view.blade.php above the first </form> line
+
+<div class="col-xs-12 col-md-6">
+	<div class="box">
+		<div class="box-header with-border">
+			<h3 class="box-title">Personal Details</h3>
+		</div>
+		<div class="box-body">
+			<div class="row">
+				<div class="form-group col-xs-12 col-sm-6">
+					<label for="country">Country</label>
+					<select id="country" name="country" class="form-control">
+						@foreach (\Pterodactyl\Classes\Countries::$countries as $countryCode => $country)
+							<option value="{{ $countryCode }}" {{ $countryCode == $user->country ? 'selected' : '' }}>{{ $country }}</option>
+						@endforeach
+					</select>
+				</div>
+				<div class="form-group col-xs-12 col-sm-6">
+					<label for="zip_code">Zip Code</label>
+					<input type="text" id="zip_code" name="zip_code" class="form-control" value="{{ $user->zip_code }}">
+				</div>
+			</div>
+			<div class="row">
+				<div class="form-group col-xs-12 col-sm-8">
+					<label for="address">Address</label>
+					<input type="text" id="address" name="address" class="form-control" value="{{ $user->address }}">
+				</div>
+				<div class="form-group col-xs-12 col-sm-4">
+					<label for="credit">Credit</label>
+					<div class="input-group">
+						<input type="text" id="credit" name="credit" class="form-control" value="{{ $user->credit }}">
+						<span class="input-group-addon">{{ count(\Illuminate\Support\Facades\DB::table('settings')->where('key', '=', 'settings::shop::currency')->get()) < 1 ? 'USD' : \Illuminate\Support\Facades\DB::table('settings')->where('key', '=', 'settings::shop::currency')->get()[0]->value }}</span>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+
+Please paste this lines to /resources/views/admin/users/view.blade.php (help04.png)
+
+<div class="col-xs-12">
+	<div class="box box-info">
+		<div class="box-header with-border">
+			<h3 class="box-title">Associated Servers</h3>
+		</div>
+		<div class="box-body table-responsive no-padding">
+			<table class="table table-hover">
+				<thead>
+					<tr>
+						<th>#</th>
+						<th>Name</th>
+						<th>Node</th>
+						<th>Creation Date</th>
+						<th>Expiration Date</th>
+					</tr>
+				</thead>
+				<tbody>
+					@foreach (\Illuminate\Support\Facades\DB::table('servers')->where('owner_id', '=', $user->id)->leftJoin('nodes', 'nodes.id', '=', 'servers.node_id')->select(['servers.*', 'nodes.name as nodeName'])->get() as $server)
+						<tr>
+							<td>{{ $server->id }}</td>
+							<td><a href="{{ route('admin.servers.view', $server->id) }}" target="_blank">{{ $server->name }}</a></td>
+							<td><a href="{{ route('admin.nodes.view', $server->node_id) }}" target="_blank">{{ $server->nodeName }}</a></td>
+							<td><code>{{ $server->created_at }}</code></td>
+							<td>
+								@if (is_null($server->expired_at))
+									<span class="label label-warning"><i class="fa fa-remove"></i></span>
+								@else
+									<code>{{ $server->expired_at }}</code>
+								@endif
+							</td>
+						</tr>
+					@endforeach
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+
+
+
+
+/resources/views/admin/servers/view/details.blade.php
+Please paste this lines to /resources/views/admin/servers/view/details.blade.php (help03.png)
+
+<div class="form-group">
+	<label for="expired_at" class="control-label">Expiration Date</label>
+	<input type="text" name="expired_at" id="expired_at" value="{{ old('expired_at', $server->expired_at) }}" class="form-control" />
+	<p class="text-muted small">Leave empty to not remove the server when it'll be expired.</p>
+</div>
+
+
+
+
+/resources/views/layouts/admin.blade.php
+Please paste this lines to /resources/views/layouts/admin.blade.php above the <li class="header">SERVICE MANAGEMENT</li> line
+
+<li class="header">SHOP MANAGEMENT</li>
+<li class="{{ ! starts_with(Route::currentRouteName(), 'admin.shop.settings') ?: 'active' }}">
+	<a href="{{ route('admin.shop.settings.payments') }}">
+		<i class="fa fa-cog"></i> <span>Settings</span>
+	</a>
+</li>
+<li class="{{ ! starts_with(Route::currentRouteName(), 'admin.shop.categories') || starts_with(Route::currentRouteName(), 'admin.shop.categories.games') ?: 'active' }}">
+	<a href="{{ route('admin.shop.categories') }}">
+		<i class="fa fa-list"></i> <span>Categories</span>
+	</a>
+</li>
+<li class="{{ ! starts_with(Route::currentRouteName(), 'admin.shop.categories.games') ?: 'active' }}">
+	<a href="{{ route('admin.shop.categories.games.categories') }}">
+		<i class="fa fa-play"></i> <span>Games</span>
+	</a>
+</li>
+<li class="{{ ! starts_with(Route::currentRouteName(), 'admin.shop.payments') ?: 'active' }}">
+	<a href="{{ route('admin.shop.payments') }}">
+		<i class="fa fa-money"></i> <span>Payments</span>
+	</a>
+</li>
+
+
+
+
+/resources/scripts/routers/routes.ts
+Please paste this line to /resources/scripts/routers/routes.ts under the import ServerActivityLogContainer from '@/components/server/ServerActivityLogContainer'; line
+
+import PersonalSettingsContainer from '@/components/dashboard/PersonalSettingsContainer';
+
+
+Please paste this lines to /resources/scripts/routers/routes.ts to the bottom of server array (help05.png)
+
+{
+	path: '/personal',
+	name: 'Personal Settings',
+	component: PersonalSettingsContainer,
+},
+
+
+
+
+/resources/scripts/components/server/settings/SettingsContainer.tsx
+Please paste this line to /resources/scripts/components/server/settings/SettingsContainer.tsx under the import CopyOnClick from '@/components/elements/CopyOnClick'; line
+
+import RenewServerBox from '@/components/server/settings/RenewServerBox';
+
+
+Please paste this lines to /resources/scripts/components/server/settings/SettingsContainer.tsx (help01.png)
+
+<Can action={'settings.renew'}>
+	<div css={tw`mt-6 md:mt-10`}>
+		<RenewServerBox />
+	</div>
+</Can>
+
+
+
+
+/resources/scripts/components/App.tsx
+Please paste this line to /resources/scripts/components/App.tsx under the const AuthenticationRouter = lazy(() => import(/* webpackChunkName: "auth" */ '@/routers/AuthenticationRouter')); line
+
+const ShopRouter = lazy(() => import(/* webpackChunkName: "shop" */ '@/routers/ShopRouter'));
+
+
+Please paste this line to /resources/scripts/components/App.tsx above the <AuthenticatedRoute path={'/'}> line
+
+<AuthenticatedRoute path={'/shop'}>
+	<Spinner.Suspense>
+		<ShopRouter />
+	</Spinner.Suspense>
+</AuthenticatedRoute>
+
+
+
+
+/resources/scripts/components/NavigationBar.tsx
+Please paste this lines to /resources/scripts/components/NavigationBar.tsx (help02.png)
+
+, faShoppingCart
+
+
+Please paste this lines to /resources/scripts/components/NavigationBar.tsx above the {rootAdmin && ( line
+
+<Tooltip placement={'bottom'} content={'Shop'}>
+	<NavLink to={'/shop'}>
+		<FontAwesomeIcon icon={faShoppingCart} />
+	</NavLink>
+</Tooltip>
+
+
+
+
+/resources/scripts/components/elements/ScreenBlock.tsx
+Please paste this line to /resources/scripts/components/elements/ScreenBlock.tsx under the import ServerErrorSvg from '@/assets/images/server_error.svg'; line
+
+import SuspendedBox from '@/components/server/settings/SuspendedBox';
+
+
+Please paste this line to /resources/scripts/components/elements/ScreenBlock.tsx above the </PageContentBlock> line
+
+<SuspendedBox />
+
+
+
+
+After all code inserted to code and app and resources and database folder pasted. Please run this commands (in /var/www/pterodactyl/):
+- composer require stripe/stripe-php
+- composer require paypal/rest-api-sdk-php:*
+- composer require laraveldaily/laravel-invoices:^3.0
+- mkdir /var/www/pterodactyl/storage/app/invoices && chown -R www-data:www-data /var/www/pterodactyl/*
+- apt install php8.0-intl
+- yarn install
+- yarn add @stripe/stripe-js
+- yarn run build:production
+- php artisan optimize
+- php artisan migrate
+
+# 6Sa+TkWP7YeJjSNWblpPZhiQ+gNU1BEuuB9k4fjYgd7Nl8eNkDu4FxgVK1DZTEsf2VMIjK0qlEJsVCq+b1vLt2cevo702MeGWWtqDkvpyr0=
