@@ -4,14 +4,20 @@
 # Sourby Installer Library - Shared functionality for install.sh
 ######################################################################################
 
-set -e
-
 # Configuration
 PTERODACTYL_PATH="${PTERODACTYL_PATH:-/var/www/pterodactyl}"
+PANEL_URL="${PANEL_URL:-}"
+APPLICATION_API_KEY="${APPLICATION_API_KEY:-}"
 BACKUP_BASE_DIR="/var/backups/sourby"
 GITHUB_REPO="YanIanZ/pteroject"
 GITHUB_BRANCH="${GITHUB_SOURCE:-main}"
 DOWNLOAD_DIR="/tmp/sourby-installer"
+
+# Detected flags
+INSTALL_THEME=1
+INSTALL_BILLING=1
+INSTALL_PLAYERS=1
+INSTALL_SORT=1
 
 # Colors
 RED='\033[0;31m'
@@ -56,13 +62,140 @@ welcome() {
     echo ""
     echo -e "  ◆ Install Sourby addons & theme onto an existing Pterodactyl panel"
     echo -e "  ◆ Automatic backup before every operation"
-    echo -e "  ◆ Supports interactive (./install.sh) and piped (curl | bash) modes"
+    echo -e "  ◆ Interactive mode:  ${CYAN}bash <(curl -s https://raw.githubusercontent.com/YanIanZ/pteroject/main/install.sh)${NC}"
     echo ""
     echo -e "${CYAN}────────────────────────────────────────────${NC}"
 }
 
 divider() {
     echo -e "${CYAN}────────────────────────────────────────────${NC}"
+}
+
+# ============================================================================
+# INTERACTIVE INPUT (always reads from /dev/tty)
+# ============================================================================
+
+prompt() {
+    # prompt "label" "default"
+    local label="$1"
+    local default="$2"
+
+    if [ -n "$default" ]; then
+        echo -n "* $label [$default]: " >/dev/tty
+    else
+        echo -n "* $label: " >/dev/tty
+    fi
+}
+
+read_input() {
+    local var_name="$1"
+    local fallback="${2:-}"
+    local value
+
+    read -r value </dev/tty
+    if [ -z "$value" ] && [ -n "$fallback" ]; then
+        value="$fallback"
+    fi
+
+    # Write back to the named variable
+    printf -v "$var_name" '%s' "$value"
+}
+
+read_yn() {
+    # Returns 0 for yes, 1 for no
+    local label="$1"
+    local default_y="${2:-1}"  # 1 = default yes
+
+    if [ "$default_y" -eq 1 ]; then
+        echo -n "* $label (Y/n): " >/dev/tty
+    else
+        echo -n "* $label (y/N): " >/dev/tty
+    fi
+
+    read -r reply </dev/tty
+
+    if [ "$default_y" -eq 1 ]; then
+        [[ ! $reply =~ ^[Nn]$ ]]
+    else
+        [[ $reply =~ ^[Yy]$ ]]
+    fi
+}
+
+# ============================================================================
+# CONFIGURATION WIZARD (Pterodactyl API setup)
+# ============================================================================
+
+configure_panel() {
+    output ""
+    divider
+    output ""
+    echo -e "  ${CYAN}Pterodactyl Panel Configuration${NC}"
+    output ""
+
+    prompt "Panel URL (e.g. https://panel.yourdomain.com)" "$PANEL_URL"
+    read_input PANEL_URL "$PANEL_URL"
+
+    prompt "Application API Key (create at Admin → Application API)" "$APPLICATION_API_KEY"
+    read_input APPLICATION_API_KEY "$APPLICATION_API_KEY"
+
+    if [ -z "$PANEL_URL" ]; then
+        warning "Panel URL not provided. You can set it later in .env"
+    else
+        success "Panel URL: $PANEL_URL"
+    fi
+
+    if [ -n "$APPLICATION_API_KEY" ]; then
+        success "API Key configured"
+    else
+        warning "API Key not provided. Some features may not work."
+    fi
+
+    output ""
+}
+
+# ============================================================================
+# COMPONENT SELECTION
+# ============================================================================
+
+configure_components() {
+    output ""
+    divider
+    output ""
+    echo -e "  ${CYAN}Addon Selection${NC}"
+    output ""
+
+    if ! read_yn "Install Unix Theme v2 (modern dark theme)?" 1; then
+        INSTALL_THEME=0
+    fi
+
+    if ! read_yn "Install Billing System (PayPal/Stripe)?" 1; then
+        INSTALL_BILLING=0
+    fi
+
+    if ! read_yn "Install Player List (real-time counter)?" 1; then
+        INSTALL_PLAYERS=0
+    fi
+
+    if ! read_yn "Install Custom Server Sort (drag-drop)?" 1; then
+        INSTALL_SORT=0
+    fi
+
+    output ""
+    info "Selected:"
+    [ "$INSTALL_THEME" -eq 1 ] && echo "  ${GREEN}✓${NC} Unix Theme v2"
+    [ "$INSTALL_BILLING" -eq 1 ] && echo "  ${GREEN}✓${NC} Billing System"
+    [ "$INSTALL_PLAYERS" -eq 1 ] && echo "  ${GREEN}✓${NC} Player List"
+    [ "$INSTALL_SORT" -eq 1 ] && echo "  ${GREEN}✓${NC} Custom Server Sort"
+    output ""
+}
+
+build_component_string() {
+    local s=""
+    [ "$INSTALL_THEME" -eq 1 ] && s="$s theme"
+    [ "$INSTALL_BILLING" -eq 1 ] && s="$s billing"
+    [ "$INSTALL_PLAYERS" -eq 1 ] && s="$s players"
+    [ "$INSTALL_SORT" -eq 1 ] && s="$s sort"
+    echo "${s# }"
 }
 
 # ============================================================================
@@ -318,30 +451,40 @@ update_env() {
 
     if [ -f "$env_file" ]; then
         cp "$env_file" "$env_file.bak"
+    else
+        warning ".env not found, creating from .env.example"
+        if [ -f "$PTERODACTYL_PATH/.env.example" ]; then
+            cp "$PTERODACTYL_PATH/.env.example" "$env_file"
+        fi
     fi
 
-    grep -q "^APP_NAME=" "$env_file" 2>/dev/null && \
-        sed -i "s|^APP_NAME=.*|APP_NAME=\"Sourby\"|" "$env_file" || \
-        echo "APP_NAME=\"Sourby\"" >> "$env_file"
+    # App & theme
+    set_env "APP_NAME" "\"Sourby\""
+    set_env "THEME" "sourby-unix"
 
-    grep -q "^THEME=" "$env_file" 2>/dev/null && \
-        sed -i "s|^THEME=.*|THEME=sourby-unix|" "$env_file" || \
-        echo "THEME=sourby-unix" >> "$env_file"
+    # Panel configuration
+    [ -n "$PANEL_URL" ] && set_env "APP_URL" "$PANEL_URL"
+    [ -n "$APPLICATION_API_KEY" ] && set_env "SOURBY_API_KEY" "$APPLICATION_API_KEY"
 
-    grep -q "^SOURBY_BILLING_ENABLED=" "$env_file" 2>/dev/null && \
-        sed -i "s|^SOURBY_BILLING_ENABLED=.*|SOURBY_BILLING_ENABLED=true|" "$env_file" || \
-        echo "SOURBY_BILLING_ENABLED=true" >> "$env_file"
-
-    grep -q "^SOURBY_PLAYER_LIST_ENABLED=" "$env_file" 2>/dev/null && \
-        sed -i "s|^SOURBY_PLAYER_LIST_ENABLED=.*|SOURBY_PLAYER_LIST_ENABLED=true|" "$env_file" || \
-        echo "SOURBY_PLAYER_LIST_ENABLED=true" >> "$env_file"
-
-    grep -q "^SOURBY_CUSTOM_SORT_ENABLED=" "$env_file" 2>/dev/null && \
-        sed -i "s|^SOURBY_CUSTOM_SORT_ENABLED=.*|SOURBY_CUSTOM_SORT_ENABLED=true|" "$env_file" || \
-        echo "SOURBY_CUSTOM_SORT_ENABLED=true" >> "$env_file"
+    # Feature flags
+    set_env "SOURBY_BILLING_ENABLED" "$([ "$INSTALL_BILLING" -eq 1 ] && echo 'true' || echo 'false')"
+    set_env "SOURBY_PLAYER_LIST_ENABLED" "$([ "$INSTALL_PLAYERS" -eq 1 ] && echo 'true' || echo 'false')"
+    set_env "SOURBY_CUSTOM_SORT_ENABLED" "$([ "$INSTALL_SORT" -eq 1 ] && echo 'true' || echo 'false')"
 
     success ".env updated"
     output ""
+}
+
+set_env() {
+    local key="$1"
+    local value="$2"
+    local env_file="$PTERODACTYL_PATH/.env"
+
+    if grep -q "^${key}=" "$env_file" 2>/dev/null; then
+        sed -i "s|^${key}=.*|${key}=${value}|" "$env_file"
+    else
+        echo "${key}=${value}" >> "$env_file"
+    fi
 }
 
 register_provider() {
@@ -351,11 +494,9 @@ register_provider() {
     local config_file="$PTERODACTYL_PATH/config/app.php"
     local provider_class="Pterodactyl\Providers\SourbyThemeServiceProvider::class"
 
-    # Try bootstrap/app.php first (Laravel 11)
     if [ -f "$bootstrap_file" ]; then
         if ! grep -q "SourbyThemeServiceProvider" "$bootstrap_file"; then
             info "Auto-registering in bootstrap/app.php..."
-            # Add provider after withProviders([
             sed -i "/->withProviders(\[/a\        $provider_class," "$bootstrap_file" 2>/dev/null || true
             success "Service provider registered in bootstrap/app.php"
         else
@@ -365,11 +506,9 @@ register_provider() {
         return 0
     fi
 
-    # Fallback to config/app.php (Laravel 10)
     if [ -f "$config_file" ]; then
         if ! grep -q "SourbyThemeServiceProvider" "$config_file"; then
             info "Auto-registering in config/app.php..."
-            # Add provider after 'providers' => [
             sed -i "/'providers' => \[/a\        $provider_class," "$config_file" 2>/dev/null || true
             success "Service provider registered in config/app.php"
         else
@@ -385,6 +524,7 @@ register_provider() {
     output ""
     return 1
 }
+
 run_migrations() {
     info "Running migrations..."
     cd "$PTERODACTYL_PATH"
@@ -460,9 +600,14 @@ run_ui() {
 
     case "$action" in
         install)
+            # Interactive configuration (like Pterodactyl installer)
+            configure_panel
+            configure_components
+            divider
+
             create_backup
             download_sourby
-            install_addons "theme billing players sort"
+            install_addons "$(build_component_string)"
             install_dependencies
             update_env
             register_provider || return
@@ -471,36 +616,20 @@ run_ui() {
             clear_caches
 
             output ""
-            output -e "${GREEN}╔════════════════════════════════════════════╗${NC}"
-            output -e "${GREEN}║    Installation Complete! ✓               ║${NC}"
-            output -e "${GREEN}╚════════════════════════════════════════════╝${NC}"
+            echo -e "${GREEN}╔════════════════════════════════════════════╗${NC}"
+            echo -e "${GREEN}║    Installation Complete! ✓               ║${NC}"
+            echo -e "${GREEN}╚════════════════════════════════════════════╝${NC}"
             output ""
-            output "Access admin: https://your-domain/admin"
-            output "Backup: $BACKUP_BASE_DIR/latest"
-            output ""
+            show_completion_summary
             ;;
 
         select)
-            output ""
-            output "Select components to install:"
-            output ""
+            configure_components
+            divider
 
-            read -p "  Install Unix Theme? (Y/n): " -n 1 -r; echo ""
-            local theme=$([[ $REPLY =~ ^[Nn]$ ]] && echo "" || echo "theme")
-
-            read -p "  Install Billing System? (Y/n): " -n 1 -r; echo ""
-            local billing=$([[ $REPLY =~ ^[Nn]$ ]] && echo "" || echo "billing")
-
-            read -p "  Install Player List? (Y/n): " -n 1 -r; echo ""
-            local players=$([[ $REPLY =~ ^[Nn]$ ]] && echo "" || echo "players")
-
-            read -p "  Install Custom Server Sort? (Y/n): " -n 1 -r; echo ""
-            local sort=$([[ $REPLY =~ ^[Nn]$ ]] && echo "" || echo "sort")
-
-            output ""
             create_backup
             download_sourby
-            install_addons "$theme $billing $players $sort"
+            install_addons "$(build_component_string)"
             install_dependencies
             update_env
             register_provider || return
@@ -528,9 +657,8 @@ run_ui() {
             output ""
             warning "This will restore from the latest backup."
             output ""
-            read -p "Are you sure? (y/n): " -n 1 -r; echo ""
 
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if read_yn "Are you sure?" 0; then
                 restore_from_backup
                 success "Sourby uninstalled"
             else
@@ -548,9 +676,8 @@ run_ui() {
         restore)
             output ""
             warning "This will restore from the latest backup."
-            read -p "Are you sure? (y/n): " -n 1 -r; echo ""
 
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if read_yn "Are you sure?" 0; then
                 restore_from_backup
                 success "Restored from backup"
             else
@@ -568,9 +695,28 @@ run_ui() {
     rm -rf "$DOWNLOAD_DIR"
 }
 
+show_completion_summary() {
+    echo "Next steps:"
+    echo ""
+    echo "  1. Access admin panel: ${CYAN}https://your-domain/admin${NC}"
+    echo ""
+    echo "  2. Verify Sourby theme is active"
+    echo ""
+    echo "  3. Manage addons:"
+    [ "$INSTALL_BILLING" -eq 1 ] && echo "     ${CYAN}Shop Settings:${NC}  /admin/shop/settings"
+    [ "$INSTALL_PLAYERS" -eq 1 ] && echo "     ${CYAN}Player Counter:${NC} /admin/players"
+    echo ""
+    echo "  Backup location: ${CYAN}$BACKUP_BASE_DIR/latest${NC}"
+    echo ""
+    echo "  Docs: ${CYAN}SOURBY_INTEGRATION.md${NC}"
+    echo ""
+}
+
 export -f output error success info warning welcome divider
+export -f prompt read_input read_yn
+export -f configure_panel configure_components build_component_string
 export -f check_root check_dependencies validate_pterodactyl
 export -f ensure_backup_dir create_backup list_backups restore_from_backup
 export -f download_sourby install_addons install_dependencies
-export -f update_env register_provider run_migrations build_frontend clear_caches
-export -f update_lib_source run_ui
+export -f update_env set_env register_provider run_migrations build_frontend clear_caches
+export -f update_lib_source run_ui show_completion_summary

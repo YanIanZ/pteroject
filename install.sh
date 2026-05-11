@@ -78,7 +78,7 @@ execute() {
     # Chained execution
     if [[ -n $2 ]]; then
         echo -e -n "* Operation '$1' completed. Proceed to '$2'? (y/N): "
-        read -r CONFIRM || true
+        read -r CONFIRM </dev/tty
         if [[ "$CONFIRM" =~ [Yy] ]]; then
             execute "$2"
         else
@@ -92,16 +92,6 @@ execute() {
 # MAIN ENTRY POINT
 #==============================================================================
 welcome ""
-
-# In piped mode (curl | bash), stdin is the pipe — can't show interactive menu.
-# Auto-install everything instead.
-if [ "$RUNNING_PIPED" = true ]; then
-    output "${YELLOW}Piped mode detected — auto-installing all components...${NC}"
-    output ""
-    execute "install"
-    rm -f /tmp/sourby-lib.sh
-    exit 0
-fi
 
 done=false
 while [ "$done" == false ]; do
@@ -136,7 +126,7 @@ while [ "$done" == false ]; do
 
     output ""
     echo -n "* Input 0-$((${#actions[@]} - 1)): "
-    read -r action </dev/tty || true
+    read -r action </dev/tty
 
     max_idx=$((${#actions[@]} - 1))
 

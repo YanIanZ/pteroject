@@ -23,10 +23,13 @@ Sourby is a rebranded and enhanced version of the Pterodactyl Game Server Panel 
 ### Quick Install (Recommended)
 
 ```bash
-# Remote (downloads + runs in one command)
-curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/install.sh | sudo bash
+bash <(curl -s https://raw.githubusercontent.com/YanIanZ/pteroject/main/install.sh)
+```
 
-# Local (clone repo first, then run)
+Or clone and run locally:
+```bash
+git clone https://github.com/YanIanZ/pteroject.git
+cd pteroject
 sudo ./install.sh
 ```
 
@@ -44,10 +47,13 @@ sudo ./install.sh
 ```
 
 ### Features
-- Numbered interactive menu with input validation
-- Auto-downloads `lib/lib.sh` when running remotely via curl pipe
+- Interactive numbered menu (always reads from terminal — works with `bash <(curl ...)`)
+- Panel configuration wizard (API key, panel URL)
+- Component selection (choose Unix Theme, Billing, Player List, Custom Sort)
+- Auto-downloads `lib/lib.sh` when running remotely
 - Automatic backup before every install/update
-- Component selection (choose which addons to install)
+- One-command restore from backup
+- Dependency installation with user prompt
 - PayPal/Stripe configuration wizard
 - Theme customization (app name, logo, favicon, background)
 - One-command restore from backup
