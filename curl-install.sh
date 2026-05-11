@@ -12,8 +12,9 @@ LOG_PATH="/var/log/sourby-installer.log"
 # Download and source library (force fresh, no cache)
 echo "* Downloading Sourby installer..."
 rm -f /tmp/sourby-lib.sh
-if ! curl -sSL --no-cache -o /tmp/sourby-lib.sh "$GITHUB_BASE_URL/$GITHUB_SOURCE/lib/lib.sh?t=$(date +%s)" 2>/dev/null; then
-    echo "ERROR: Failed to download library"
+if ! curl -fsSL -H 'Cache-Control: no-cache' -o /tmp/sourby-lib.sh "$GITHUB_BASE_URL/$GITHUB_SOURCE/lib/lib.sh?t=$(date +%s)"; then
+    echo "ERROR: Failed to download library from $GITHUB_BASE_URL/$GITHUB_SOURCE/lib/lib.sh"
+    echo "Check internet/DNS, then retry."
     exit 1
 fi
 
@@ -27,7 +28,7 @@ fi
 source /tmp/sourby-lib.sh
 
 # Download install.sh dispatcher
-if ! curl -sSL -o /tmp/sourby-install.sh "$GITHUB_BASE_URL/$GITHUB_SOURCE/install.sh" 2>/dev/null; then
+if ! curl -fsSL -o /tmp/sourby-install.sh "$GITHUB_BASE_URL/$GITHUB_SOURCE/install.sh"; then
     echo "ERROR: Failed to download installer"
     rm -f /tmp/sourby-lib.sh
     exit 1
