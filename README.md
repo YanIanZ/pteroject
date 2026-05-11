@@ -12,13 +12,30 @@ Sourby is a rebranded and enhanced version of the Pterodactyl Game Server Panel 
 ## Installation
 
 ### Prerequisites
+- Pterodactyl Panel v1.12.0+
 - PHP 8.2+
 - Laravel 11
 - MySQL/MariaDB
-- Node.js & Yarn
-- Go 1.24+ (for Wings)
+- Node.js 16+ & Yarn
+- Composer
+- curl, unzip, git
 
-### Quick Start
+### Recommended: Automated Installation
+
+**One command to install everything with backup/restore support:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-manager.sh | sudo bash
+```
+
+Features:
+- ✓ Full automation with all dependencies
+- ✓ Automatic backup before installation
+- ✓ Interactive menu (install/uninstall/backup history)
+- ✓ One-command uninstall with automatic restore
+- ✓ Production-ready with error handling
+
+### Manual Installation (Alternative)
 
 1. Copy addon files to your Pterodactyl installation:
 ```bash
@@ -62,8 +79,18 @@ SOURBY_PLAYER_LIST_ENABLED=true
 SOURBY_CUSTOM_SORT_ENABLED=true
 ```
 
+## Installation Scripts
+
+- `sourby-manager.sh` - Comprehensive manager with install/uninstall and backup/restore (RECOMMENDED)
+- `install-sourby.sh` - Standalone installation script (curl-downloadable)
+- `install.sh` - Local installation script
+- `INSTALL.md` - Detailed installation guide with manual steps
+- `QUICKSTART.md` - 5-minute quick start guide
+
 ## Documentation
 
+- [Installation Guide](./INSTALL.md)
+- [Quick Start](./QUICKSTART.md)
 - [Unix Theme PanelEdit](./Unix\ Theme\ v2/PanelEdit.txt)
 - [Billing System Setup](./billing-system-v1x-v143/PanelEdit.txt)
 - [Player List Installation](./Player\ List\ \&\ Counter\ 1.0/PanelEdit.txt)

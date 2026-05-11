@@ -2,6 +2,30 @@
 
 This guide covers installing Sourby (enhanced Pterodactyl with integrated addons) to an existing Pterodactyl Panel v1.12.0+ installation.
 
+## Quick Start (Recommended)
+
+**One-command installation with automatic backup and uninstall support:**
+
+```bash
+# Using curl
+curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-manager.sh | sudo bash
+
+# Or run locally
+sudo ./sourby-manager.sh
+```
+
+The `sourby-manager.sh` script provides:
+- ✓ Fully automated installation
+- ✓ Automatic backup before installation
+- ✓ One-command uninstallation with restore
+- ✓ Interactive menu (install/uninstall/backup history)
+- ✓ Complete dependency installation
+- ✓ Frontend asset building
+
+---
+
+## Full Installation Guide
+
 ## Prerequisites
 
 - Pterodactyl Panel v1.12.0 or higher

@@ -1,6 +1,22 @@
 # Sourby Quick Start
 
-Get Sourby installed in 5 minutes.
+Get Sourby installed in 5 minutes with automatic backup and uninstall support.
+
+## Recommended: One-Command Installation
+
+```bash
+# Full automated installation with backup/restore support
+curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-manager.sh | sudo bash
+```
+
+Or run locally:
+```bash
+sudo ./sourby-manager.sh
+```
+
+This installs everything automatically with backup support. You can uninstall anytime using the same script.
+
+---
 
 ## Prerequisites
 
@@ -8,7 +24,7 @@ Get Sourby installed in 5 minutes.
 - SSH access to server
 - `sudo` privileges
 
-## Installation
+## Manual Installation (Alternative)
 
 ### 1. Clone Sourby
 
