@@ -78,7 +78,7 @@ execute() {
     # Chained execution
     if [[ -n $2 ]]; then
         echo -e -n "* Operation '$1' completed. Proceed to '$2'? (y/N): "
-        read -r CONFIRM
+        read -r CONFIRM || true
         if [[ "$CONFIRM" =~ [Yy] ]]; then
             execute "$2"
         else
@@ -126,7 +126,7 @@ while [ "$done" == false ]; do
 
     output ""
     echo -n "* Input 0-$((${#actions[@]} - 1)): "
-    read -r action
+    read -r action || true
 
     max_idx=$((${#actions[@]} - 1))
 
@@ -135,7 +135,14 @@ while [ "$done" == false ]; do
         continue
     fi
 
-    if ! [[ "$action" =~ ^[0-9]+$ ]] || [ "$action" -lt 0 ] || [ "$action" -gt "$max_idx" ]; then
+    # Validate: digits-only and within range
+    valid=0
+    case "$action" in
+        ''|*[!0-9]* ) ;;  # empty or contains non-digit
+        * ) [ "$action" -le "$max_idx" ] 2>/dev/null && valid=1 ;;
+    esac
+
+    if [ "$valid" -eq 0 ]; then
         output "Invalid option. Please enter 0-$max_idx."
         continue
     fi
