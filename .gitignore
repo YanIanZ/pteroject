@@ -1,0 +1,31 @@
+# Panel
+panel/node_modules/
+panel/vendor/
+panel/.env
+panel/bootstrap/cache/
+panel/storage/
+panel/tests/_output/
+
+# Wings
+wings/bin/
+wings/vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.DS_Store
+
+# Addons
+**/node_modules/
+**/vendor/
+**/.env
+**/storage/
+**/cache/
+
+# Build artifacts
+dist/
+build/
+*.min.js
+*.min.css
