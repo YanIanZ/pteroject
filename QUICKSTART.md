@@ -2,19 +2,38 @@
 
 Get Sourby installed in 5 minutes with automatic backup and uninstall support.
 
-## Recommended: One-Command Installation
+## Recommended: Interactive Setup Wizard
 
 ```bash
-# Full automated installation with backup/restore support
-curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-manager.sh | sudo bash
+# Full setup with addon selection and PayPal configuration
+curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-setup-wizard.sh | sudo bash
 ```
 
 Or run locally:
 ```bash
-sudo ./sourby-manager.sh
+sudo ./sourby-setup-wizard.sh
 ```
 
-This installs everything automatically with backup support. You can uninstall anytime using the same script.
+This walks you through:
+1. Selecting which addons to install
+2. Configuring app name and theme
+3. Setting up PayPal (Client ID, Secret, mode)
+4. Configuring Stripe (optional)
+5. Automatic installation with backup
+
+**Complete in ~5-10 minutes with full configuration.**
+
+---
+
+## Alternative: Quick Installation
+
+Skip configuration and install everything at once:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-manager.sh | sudo bash
+```
+
+Manual configuration after install, uninstall/reinstall support included.
 
 ---
 

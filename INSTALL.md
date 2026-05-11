@@ -4,7 +4,32 @@ This guide covers installing Sourby (enhanced Pterodactyl with integrated addons
 
 ## Quick Start (Recommended)
 
-**One-command installation with automatic backup and uninstall support:**
+### Option 1: Full Setup Wizard (Complete Configuration)
+
+**Interactive setup wizard with selective addon/theme installation:**
+
+```bash
+# Using curl
+curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-setup-wizard.sh | sudo bash
+
+# Or run locally
+sudo ./sourby-setup-wizard.sh
+```
+
+The `sourby-setup-wizard.sh` script provides:
+- ✓ Choose which addons to install (Unix Theme, Billing, Player List, Custom Sort)
+- ✓ Interactive theme configuration (app name, logo, favicon, colors)
+- ✓ Complete PayPal setup (Client ID, Secret, mode selection)
+- ✓ Stripe integration setup (optional)
+- ✓ Automatic .env file configuration with all settings
+- ✓ Automatic backup before installation
+- ✓ Complete dependency installation
+- ✓ Frontend asset building
+- ✓ Database migrations
+
+### Option 2: Quick Manager (Install/Uninstall Only)
+
+**Faster installation without interactive setup (installs all components):**
 
 ```bash
 # Using curl
@@ -15,10 +40,10 @@ sudo ./sourby-manager.sh
 ```
 
 The `sourby-manager.sh` script provides:
-- ✓ Fully automated installation
+- ✓ Fully automated installation of all components
 - ✓ Automatic backup before installation
-- ✓ One-command uninstallation with restore
 - ✓ Interactive menu (install/uninstall/backup history)
+- ✓ One-command uninstallation with automatic restore
 - ✓ Complete dependency installation
 - ✓ Frontend asset building
 

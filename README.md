@@ -20,9 +20,31 @@ Sourby is a rebranded and enhanced version of the Pterodactyl Game Server Panel 
 - Composer
 - curl, unzip, git
 
-### Recommended: Automated Installation
+### Recommended: Full Setup Wizard (Complete Configuration)
 
-**One command to install everything with backup/restore support:**
+**Interactive setup with selective addon/theme installation and automatic PayPal/theme configuration:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-setup-wizard.sh | sudo bash
+```
+
+Or locally:
+```bash
+sudo ./sourby-setup-wizard.sh
+```
+
+Features:
+- ✓ Choose which addons to install (Unix Theme, Billing, Player List, Custom Sort)
+- ✓ Automatic theme configuration (name, logo, favicon)
+- ✓ Complete PayPal setup automation (Client ID, Secret, Stripe keys)
+- ✓ Automatic .env configuration with all settings
+- ✓ Full dependency installation with user prompt
+- ✓ Automatic backup before installation
+- ✓ Production-ready with error handling
+
+### Alternative: Quick Manager (Install/Uninstall Only)
+
+For faster installation without interactive setup:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/YanIanZ/pteroject/main/sourby-manager.sh | sudo bash
@@ -33,7 +55,6 @@ Features:
 - ✓ Automatic backup before installation
 - ✓ Interactive menu (install/uninstall/backup history)
 - ✓ One-command uninstall with automatic restore
-- ✓ Production-ready with error handling
 
 ### Manual Installation (Alternative)
 
