@@ -309,6 +309,11 @@ check_dependencies() {
         missing+=("git")
     fi
 
+    # rsync (used to overlay panel base + theme without clobbering user data)
+    if ! command -v rsync &>/dev/null; then
+        missing+=("rsync")
+    fi
+
     # System packages
     if [ ${#missing[@]} -gt 0 ]; then
         output ""
@@ -577,6 +582,37 @@ download_sourby() {
 # INSTALLATION
 # ============================================================================
 
+install_panel_base() {
+    if [ ! -d "$EXTRACTED_DIR/panel" ]; then
+        warning "panel/ folder missing in repo — skipping base panel sync"
+        return 0
+    fi
+
+    info "Syncing latest Pterodactyl panel base from panel/ ..."
+
+    # Preserve user data: .env, storage/, database/database.sqlite if exists
+    local panel_src="$EXTRACTED_DIR/panel"
+
+    # rsync everything except runtime/user-state paths
+    rsync -a \
+        --exclude='.env' \
+        --exclude='.env.*' \
+        --exclude='storage/logs/' \
+        --exclude='storage/framework/cache/' \
+        --exclude='storage/framework/sessions/' \
+        --exclude='storage/framework/views/' \
+        --exclude='storage/app/' \
+        --exclude='bootstrap/cache/' \
+        --exclude='node_modules/' \
+        --exclude='vendor/' \
+        --exclude='public/build/' \
+        --exclude='public/hot' \
+        "$panel_src/" "$PTERODACTYL_PATH/" || { error "Panel base sync failed"; exit 1; }
+
+    success "Panel base synced"
+    output ""
+}
+
 install_addons() {
     local components="$1"
 
@@ -585,6 +621,9 @@ install_addons() {
         warning "Download may have failed. Check your internet connection."
         exit 1
     fi
+
+    # Always sync panel base first so theme/addons overlay clean latest panel
+    install_panel_base
 
     info "Installing selected components (from $EXTRACTED_DIR)..."
     output ""
@@ -601,7 +640,19 @@ install_addons() {
         local theme_dir="$EXTRACTED_DIR/Sourby Theme/pterodactyl"
         if [ -d "$theme_dir" ]; then
             info "Installing Sourby Theme..."
-            cp -r "$theme_dir"/* "$PTERODACTYL_PATH/"
+            # Copy theme files excluding core panel overrides
+            # Theme uses ViewComposers + partial includes, not file replacement
+            rsync -a \
+                --exclude='app/Http/Controllers/Auth/LoginController.php' \
+                --exclude='app/Http/Controllers/Admin/BaseController.php' \
+                --exclude='app/Http/Controllers/Base/IndexController.php' \
+                --exclude='resources/views/layouts/admin.blade.php' \
+                --exclude='resources/views/templates/wrapper.blade.php' \
+                --exclude='resources/views/templates/auth/core.blade.php' \
+                --exclude='resources/views/templates/base/core.blade.php' \
+                --exclude='resources/views/vendor/' \
+                "$theme_dir/" "$PTERODACTYL_PATH/" 2>/dev/null || \
+                cp -r "$theme_dir"/* "$PTERODACTYL_PATH/"
             success "Sourby Theme installed"
             installed=1
         else
@@ -797,7 +848,18 @@ build_frontend() {
     fi
     YARN_IGNORE_ENGINES=true yarn run build:production || { error "Frontend build failed"; exit 1; }
 
-    success "Frontend built"
+    # Verify build artifacts exist
+    if [ ! -d "$PTERODACTYL_PATH/public/assets" ] && [ ! -d "$PTERODACTYL_PATH/public/build" ]; then
+        error "Build produced no assets in public/assets or public/build"
+        exit 1
+    fi
+
+    # Fix ownership (nginx/php-fpm runs as www-data on Debian/Ubuntu)
+    local web_user="www-data"
+    id -u "$web_user" >/dev/null 2>&1 || web_user="nginx"
+    id -u "$web_user" >/dev/null 2>&1 && chown -R "$web_user:$web_user" "$PTERODACTYL_PATH" || warning "Could not chown — set manually"
+
+    success "Frontend built and permissions fixed"
     output ""
 }
 
@@ -979,6 +1041,20 @@ verify_install() {
         success "public/themes/sourby (theme assets)"
     else
         error "public/themes/sourby — theme assets missing"
+        ok=0
+    fi
+
+    if [ -f "$PTERODACTYL_PATH/public/themes/sourby/css/core.css" ]; then
+        success "themes/sourby/css/core.css"
+    else
+        error "themes/sourby/css/core.css missing — CSS won't load in browser"
+        ok=0
+    fi
+
+    if [ -d "$PTERODACTYL_PATH/public/assets" ] || [ -d "$PTERODACTYL_PATH/public/build" ]; then
+        success "frontend build output present"
+    else
+        error "no public/assets or public/build — yarn build:production likely failed"
         ok=0
     fi
 
