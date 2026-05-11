@@ -205,20 +205,49 @@ install_addons() {
     echo ""
 }
 
+# Ask to install dependencies
+ask_install_dependencies() {
+    echo ""
+    log_info "Required dependencies:"
+    echo "  - paypal/checkout-sdk (PayPal payments)"
+    echo "  - stripe/stripe-php (Stripe payments)"
+    echo "  - sortablejs (drag-drop server sort)"
+    echo ""
+
+    if [ "$RUNNING_PIPED" = true ]; then
+        # In piped mode, install automatically
+        return 0
+    fi
+
+    read -p "Install dependencies? (y/n): " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_warning "Skipping dependency installation"
+        log_warning "You must install manually:"
+        echo "  cd $PTERODACTYL_PATH"
+        echo "  composer require paypal/checkout-sdk stripe/stripe-php"
+        echo "  yarn add sortablejs"
+        return 1
+    fi
+    return 0
+}
+
 # Install dependencies
 install_dependencies() {
     log_info "Installing PHP and Node.js dependencies..."
     cd "$PTERODACTYL_PATH"
 
+    log_info "Installing Composer packages..."
     if composer require --no-interaction paypal/checkout-sdk stripe/stripe-php &> /dev/null; then
-        log_success "PHP dependencies installed"
+        log_success "PHP dependencies installed (paypal/checkout-sdk, stripe/stripe-php)"
     else
         log_error "Failed to install PHP dependencies"
         exit 1
     fi
 
+    log_info "Installing Node.js packages..."
     if yarn add sortablejs &> /dev/null; then
-        log_success "Node.js dependencies installed"
+        log_success "Node.js dependencies installed (sortablejs)"
     else
         log_error "Failed to install Node.js dependencies"
         exit 1
@@ -404,7 +433,7 @@ install_sourby() {
     backup_files
     download_sourby
     install_addons
-    install_dependencies
+    ask_install_dependencies && install_dependencies
     register_provider
     run_migrations
     build_frontend
