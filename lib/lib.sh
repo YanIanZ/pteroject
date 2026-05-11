@@ -642,6 +642,23 @@ install_panel_base() {
 
     success "Panel base synced from latest release"
     output ""
+
+    # vendor/ was excluded, so it may not match the new composer.json/lock that
+    # just landed. Refresh it now — otherwise Schema::hasTable, getTables() and
+    # other Laravel APIs may not match (e.g. Laravel 11 vendor vs Laravel 10 code).
+    info "Refreshing Composer dependencies to match new panel base..."
+    cd "$PTERODACTYL_PATH"
+    if command -v composer >/dev/null 2>&1; then
+        composer install --no-dev --optimize-autoloader --no-interaction 2>&1 | tail -3 || {
+            error "composer install failed"
+            warning "Run manually: cd $PTERODACTYL_PATH && composer install --no-dev"
+            exit 1
+        }
+        success "Composer dependencies refreshed"
+    else
+        warning "composer not found — vendor/ may be out of sync with new panel code"
+    fi
+    output ""
 }
 
 install_addons() {
@@ -1101,8 +1118,12 @@ SIDEBAR_PLAYERS_EOF
     if [ "$INSTALL_BILLING" -eq 1 ]; then
         info "Installing billing composer deps (laraveldaily/laravel-invoices, paypal/rest-api-sdk-php)..."
         cd "$PTERODACTYL_PATH"
-        composer require laraveldaily/laravel-invoices:^3.0 paypal/rest-api-sdk-php:* --no-interaction 2>&1 | tail -2 || \
-            warning "Some billing deps failed — install manually"
+        # -W = update with dependencies (resolves Pterodactyl's pin conflicts)
+        # --ignore-platform-req=php = skip PHP version check (Pterodactyl may pin different)
+        composer require laraveldaily/laravel-invoices:^3.0 -W --no-interaction 2>&1 | tail -3 || \
+            warning "laravel-invoices install failed — try: composer require laraveldaily/laravel-invoices:^3.0 -W --ignore-platform-reqs"
+        composer require paypal/rest-api-sdk-php:* --no-interaction 2>&1 | tail -3 || \
+            warning "paypal-sdk install failed — try: composer require paypal/rest-api-sdk-php"
         mkdir -p "$PTERODACTYL_PATH/storage/app/invoices"
     fi
 
@@ -1110,8 +1131,10 @@ SIDEBAR_PLAYERS_EOF
     if [ "$INSTALL_PLAYERS" -eq 1 ]; then
         info "Installing player counter composer dep (austinb/gameq)..."
         cd "$PTERODACTYL_PATH"
-        composer require austinb/gameq:~3.0 --no-interaction 2>&1 | tail -2 || \
-            warning "gameq install failed — install manually"
+        # austinb/gameq has both 3.x (PHP 7.x) and dev-master (PHP 8). Try 3.x first, fall back to dev-master
+        composer require "austinb/gameq:^3.1" -W --no-interaction 2>&1 | tail -3 || \
+            composer require "austinb/gameq:dev-master" -W --no-interaction 2>&1 | tail -3 || \
+            warning "gameq install failed — install manually: composer require austinb/gameq -W"
     fi
 
     output ""
