@@ -588,6 +588,13 @@ install_addons() {
 
     info "Installing selected components (from $EXTRACTED_DIR)..."
     output ""
+
+    # Debug: show what was extracted
+    info "Extracted contents:"
+    ls -d "$EXTRACTED_DIR"/*/ 2>/dev/null | while read -r d; do
+        output "  $(basename "$d")/"
+    done
+    output ""
     local installed=0
 
     if [[ "$components" == *"theme"* ]]; then
