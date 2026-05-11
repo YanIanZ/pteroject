@@ -39,10 +39,10 @@ export default ({ stripeKey, enabled, minAmount, maxAmount, currency }: Props) =
             setSubmit(false);
             clearFlashes('payments');
 
-            stripePromise.then(stripe => {
+            stripePromise.then((stripe: any) => {
                 stripe?.redirectToCheckout({
                     sessionId: data.data.sessionId,
-                }).then(result => {
+                }).then((result: any) => {
                     if (result.error) {
                         addFlash({ key: 'payments', message: 'Failed to make the transaction. Please try again later...', type: 'error', title: 'Error' });
                     }

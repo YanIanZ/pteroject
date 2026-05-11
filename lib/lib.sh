@@ -736,6 +736,10 @@ install_dependencies() {
         composer require paypal/checkout-sdk stripe/stripe-php --no-interaction 2>&1 | tail -1 || \
             warning "Payment SDKs install failed — install manually: composer require paypal/checkout-sdk stripe/stripe-php"
         success "Payment SDKs installed"
+
+        info "Installing @stripe/stripe-js JS package..."
+        yarn add @stripe/stripe-js 2>&1 | tail -1 || \
+            warning "Failed to add @stripe/stripe-js — install manually: yarn add @stripe/stripe-js"
     fi
 
     output ""
