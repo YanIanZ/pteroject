@@ -160,7 +160,7 @@ download_sourby() {
 
     # Extract
     log_info "Extracting..."
-    unzip -q sourby.zip
+    unzip -oq sourby.zip
     EXTRACTED_DIR="pteroject-${GITHUB_BRANCH}"
     if [ ! -d "$EXTRACTED_DIR" ]; then
         log_error "Extraction failed"

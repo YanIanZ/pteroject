@@ -90,7 +90,7 @@ fi
 
 # Extract
 echo "Extracting..."
-unzip -q sourby.zip
+unzip -oq sourby.zip
 EXTRACTED_DIR="pteroject-${GITHUB_BRANCH}"
 if [ ! -d "$EXTRACTED_DIR" ]; then
     echo -e "${RED}✗ Extraction failed${NC}"
@@ -161,6 +161,13 @@ else
     echo "  php artisan cache:clear"
     exit 0
 fi
+
+echo ""
+echo -e "${YELLOW}Installing dependencies...${NC}"
+cd "$PTERODACTYL_PATH"
+composer require --no-interaction paypal/checkout-sdk stripe/stripe-php
+yarn add sortablejs
+echo -e "${GREEN}✓ Dependencies installed${NC}"
 
 echo ""
 echo -e "${YELLOW}Running migrations...${NC}"

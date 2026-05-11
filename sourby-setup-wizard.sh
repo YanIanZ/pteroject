@@ -255,7 +255,7 @@ download_sourby() {
     fi
 
     log_info "Extracting..."
-    unzip -q sourby.zip
+    unzip -oq sourby.zip
     EXTRACTED_DIR="pteroject-${GITHUB_BRANCH}"
     if [ ! -d "$EXTRACTED_DIR" ]; then
         log_error "Extraction failed"
@@ -310,17 +310,21 @@ install_dependencies() {
     log_info "Installing dependencies..."
     cd "$PTERODACTYL_PATH"
 
-    if composer require --no-interaction paypal/checkout-sdk stripe/stripe-php &> /dev/null; then
+    log_info "Installing Composer packages..."
+    if composer require --no-interaction paypal/checkout-sdk stripe/stripe-php; then
         log_success "PHP dependencies installed"
     else
         log_error "Failed to install PHP dependencies"
+        log_info "Try manually: composer require paypal/checkout-sdk stripe/stripe-php"
         exit 1
     fi
 
-    if yarn add sortablejs &> /dev/null; then
+    log_info "Installing Node.js packages..."
+    if yarn add sortablejs; then
         log_success "Node.js dependencies installed"
     else
         log_error "Failed to install Node.js dependencies"
+        log_info "Try manually: yarn add sortablejs"
         exit 1
     fi
 
