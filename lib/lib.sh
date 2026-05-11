@@ -587,11 +587,10 @@ download_sourby() {
 install_panel_base() {
     local panel_src="$DOWNLOAD_DIR/panel-upstream"
     local panel_tar="$DOWNLOAD_DIR/panel.tar.gz"
-    # Pterodactyl's GitHub "releases/latest" currently resolves to v1.12.2 (canary,
-    # Laravel 11, PHP 8.2). The theme + addons in this repo target the long-lived
-    # stable line (v1.11.x, Laravel 10), so pin to v1.11.11 by default. Override
-    # via PANEL_RELEASE_URL for any other release.
-    local panel_url="${PANEL_RELEASE_URL:-https://github.com/pterodactyl/panel/releases/download/v1.11.11/panel.tar.gz}"
+    # Default to Pterodactyl v1.12.2 (Laravel 11, PHP 8.2) — the current GitHub
+    # "latest" release. Theme + addons have been patched for this line.
+    # Override via PANEL_RELEASE_URL (e.g. v1.11.11 for the legacy Laravel 10 line).
+    local panel_url="${PANEL_RELEASE_URL:-https://github.com/pterodactyl/panel/releases/download/v1.12.2/panel.tar.gz}"
 
     info "Downloading latest Pterodactyl panel release tarball..."
     info "URL: $panel_url"
@@ -1147,7 +1146,14 @@ run_migrations() {
     info "Running migrations..."
     cd "$PTERODACTYL_PATH"
 
-    php artisan migrate --force || { error "Migrations failed"; exit 1; }
+    # Use -v for the migration name on each step. On failure re-run with -vvv
+    # to surface the full stack so we can identify the offending migration file.
+    if ! php artisan migrate --force -v; then
+        warning "Migration run failed — re-running with full trace to identify the offending file"
+        php artisan migrate --force -vvv 2>&1 | tail -60
+        error "Migrations failed"
+        exit 1
+    fi
     success "Migrations completed"
     output ""
 }
