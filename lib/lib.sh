@@ -615,12 +615,13 @@ build_frontend() {
     # Check Node version
     local node_ver=$(node -v 2>/dev/null | sed 's/v//' | cut -d. -f1)
     if [ "$node_ver" -lt 22 ] 2>/dev/null; then
-        warning "Node.js $(node -v) is older than required (>=22). Trying with --ignore-engines..."
-        yarn install --ignore-engines || { error "yarn install failed — upgrade Node to >=22"; exit 1; }
+        warning "Node.js $(node -v) is older than required (>=22). Using --ignore-engines..."
+        export YARN_IGNORE_ENGINES=true
+        yarn install || { error "yarn install failed — upgrade Node to >=22"; exit 1; }
     else
         yarn install || { error "yarn install failed"; exit 1; }
     fi
-    yarn run build:production || { error "Frontend build failed"; exit 1; }
+    YARN_IGNORE_ENGINES=true yarn run build:production || { error "Frontend build failed"; exit 1; }
 
     success "Frontend built"
     output ""
