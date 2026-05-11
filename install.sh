@@ -1,139 +1,159 @@
 #!/bin/bash
 
-# Sourby Installation Script
-# Installs Sourby (rebranded Pterodactyl with integrated addons) to an existing Pterodactyl Panel installation
-
 set -e
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+######################################################################################
+#                                                                                    #
+# Project 'pteroject' - Sourby Unified Installer                                     #
+#                                                                                    #
+# Copyright (C) 2025 - 2026, YanIanZ                                                 #
+#                                                                                    #
+#   This program is free software: you can redistribute it and/or modify             #
+#   it under the terms of the GNU General Public License as published by             #
+#   the Free Software Foundation, either version 3 of the License, or                #
+#   (at your option) any later version.                                              #
+#                                                                                    #
+#   This program is distributed in the hope that it will be useful,                  #
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of                   #
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                    #
+#   GNU General Public License for more details.                                     #
+#                                                                                    #
+#   You should have received a copy of the GNU General Public License                #
+#   along with this program.  If not, see <https://www.gnu.org/licenses/>.           #
+#                                                                                    #
+# https://github.com/YanIanZ/pteroject/blob/main/LICENSE                             #
+#                                                                                    #
+######################################################################################
 
-# Default Pterodactyl path
-PTERODACTYL_PATH="${PTERODACTYL_PATH:-/var/www/pterodactyl}"
+export GITHUB_SOURCE="main"
+export SCRIPT_RELEASE="v1.0.0"
+export GITHUB_BASE_URL="https://raw.githubusercontent.com/YanIanZ/pteroject"
 
-echo -e "${GREEN}=== Sourby Installation Script ===${NC}"
-echo ""
+LOG_PATH="/var/log/sourby-installer.log"
 
-# Check if Pterodactyl path exists
-if [ ! -d "$PTERODACTYL_PATH" ]; then
-    echo -e "${RED}Error: Pterodactyl installation not found at $PTERODACTYL_PATH${NC}"
-    echo "Set PTERODACTYL_PATH environment variable to the correct path and try again."
-    echo "Example: PTERODACTYL_PATH=/var/www/panel ./install.sh"
-    exit 1
-fi
+# Source the library
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo -e "${YELLOW}Pterodactyl Path: $PTERODACTYL_PATH${NC}"
-echo ""
-
-# Get current script directory
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-echo -e "${YELLOW}Step 1: Copying addon files to Pterodactyl installation...${NC}"
-
-# Copy Unix Theme v2
-if [ -d "$SCRIPT_DIR/Unix Theme v2/pterodactyl" ]; then
-    echo "Copying Unix Theme v2..."
-    cp -r "$SCRIPT_DIR/Unix Theme v2/pterodactyl"/* "$PTERODACTYL_PATH/"
-    echo -e "${GREEN}✓ Unix Theme v2 copied${NC}"
+if [ -f "$SCRIPT_DIR/lib/lib.sh" ]; then
+    # Local mode - source from script directory
+    # shellcheck source=lib/lib.sh
+    source "$SCRIPT_DIR/lib/lib.sh"
 else
-    echo -e "${RED}✗ Unix Theme v2 not found${NC}"
+    # Remote mode - download lib.sh
+    echo "* Downloading library..."
+    rm -f /tmp/sourby-lib.sh
+    if curl -sSL -o /tmp/sourby-lib.sh "$GITHUB_BASE_URL/$GITHUB_SOURCE/lib/lib.sh" 2>/dev/null; then
+        if head -1 /tmp/sourby-lib.sh | grep -q '#!/bin/bash'; then
+            # shellcheck source=/dev/null
+            source /tmp/sourby-lib.sh
+        else
+            echo "* ERROR: Failed to download library. Check your internet connection."
+            rm -f /tmp/sourby-lib.sh
+            exit 1
+        fi
+    else
+        echo "* ERROR: Failed to download library. Check your internet connection."
+        exit 1
+    fi
 fi
 
-# Copy Billing System
-if [ -d "$SCRIPT_DIR/billing-system-v1x-v143/PanelFiles" ]; then
-    echo "Copying Billing System..."
-    cp -r "$SCRIPT_DIR/billing-system-v1x-v143/PanelFiles"/* "$PTERODACTYL_PATH/"
-    echo -e "${GREEN}✓ Billing System copied${NC}"
-else
-    echo -e "${RED}✗ Billing System not found${NC}"
-fi
+#==============================================================================
+# MAIN DISPATCHER
+#==============================================================================
+execute() {
+    echo -e "\n\n* sourby-installer $(date) \n\n" >> "$LOG_PATH"
 
-# Copy Player List addon
-if [ -d "$SCRIPT_DIR/Player List & Counter 1.0/PanelFiles" ]; then
-    echo "Copying Player List addon..."
-    cp -r "$SCRIPT_DIR/Player List & Counter 1.0/PanelFiles"/* "$PTERODACTYL_PATH/"
-    echo -e "${GREEN}✓ Player List addon copied${NC}"
-else
-    echo -e "${RED}✗ Player List addon not found${NC}"
-fi
+    # Try to update lib from remote (if available)
+    update_lib_source 2>/dev/null || true
 
-# Copy Custom Server Sort
-if [ -d "$SCRIPT_DIR/custom-server-sort-v103" ]; then
-    echo "Copying Custom Server Sort..."
-    find "$SCRIPT_DIR/custom-server-sort-v103" -type f ! -name "PanelEdit.txt" ! -name "README.md" -exec bash -c 'rel="${1#'"$SCRIPT_DIR/custom-server-sort-v103/"'}"; mkdir -p "$PTERODACTYL_PATH/${rel%/*}"; cp "$1" "$PTERODACTYL_PATH/$rel"' _ {} \;
-    echo -e "${GREEN}✓ Custom Server Sort copied${NC}"
-else
-    echo -e "${RED}✗ Custom Server Sort not found${NC}"
-fi
+    # Direct commands (no UI needed)
+    if [[ "$1" == "backup" ]] || [[ "$1" == "restore" ]]; then
+        run_ui "$1" 2>&1 | tee -a "$LOG_PATH"
+        return
+    fi
 
-echo ""
-echo -e "${YELLOW}Step 2: Installing Dependencies...${NC}"
-cd "$PTERODACTYL_PATH"
-composer require paypal/checkout-sdk stripe/stripe-php
-yarn add sortablejs
-echo -e "${GREEN}✓ Dependencies installed${NC}"
+    # Full UI flows
+    run_ui "$1" 2>&1 | tee -a "$LOG_PATH"
 
-echo ""
-echo -e "${YELLOW}Step 3: Registering Sourby Theme Service Provider...${NC}"
-echo "Edit $PTERODACTYL_PATH/bootstrap/app.php and add to withProviders():"
-echo ""
-echo "    Pterodactyl\Providers\SourbyThemeServiceProvider::class,"
-echo ""
-echo -e "${YELLOW}Or edit $PTERODACTYL_PATH/config/app.php providers array:${NC}"
-echo "    'providers' => ["
-echo "        ..."
-echo "        Pterodactyl\Providers\SourbyThemeServiceProvider::class,"
-echo "    ]"
-echo ""
-read -p "Press Enter after registering the service provider... " -t 30 || true
+    # Chained execution
+    if [[ -n $2 ]]; then
+        echo -e -n "* Operation '$1' completed. Proceed to '$2'? (y/N): "
+        read -r CONFIRM
+        if [[ "$CONFIRM" =~ [Yy] ]]; then
+            execute "$2"
+        else
+            output "Operation '$2' cancelled."
+            exit 0
+        fi
+    fi
+}
 
-echo ""
-echo -e "${YELLOW}Step 4: Running migrations...${NC}"
-cd "$PTERODACTYL_PATH"
-php artisan migrate --force
-echo -e "${GREEN}✓ Migrations completed${NC}"
+#==============================================================================
+# MAIN ENTRY POINT
+#==============================================================================
+welcome ""
 
-echo ""
-echo -e "${YELLOW}Step 5: Building frontend...${NC}"
-cd "$PTERODACTYL_PATH"
-if [ -f "package.json" ]; then
-    yarn install
-    yarn run build:production
-    echo -e "${GREEN}✓ Frontend built${NC}"
-else
-    echo -e "${RED}✗ package.json not found${NC}"
-fi
+done=false
+while [ "$done" == false ]; do
+    options=(
+        "Install Sourby (all addons + theme)"
+        "Select components to install"
+        "Update Sourby from GitHub"
+        "Uninstall Sourby (restore backup)"
+        "Create backup"
+        "Restore from backup"
+        "View backup history"
+        "Exit"
+    )
 
-echo ""
-echo -e "${YELLOW}Step 6: Clearing caches...${NC}"
-cd "$PTERODACTYL_PATH"
-php artisan route:clear
-php artisan config:clear
-php artisan view:clear
-php artisan cache:clear
-echo -e "${GREEN}✓ Caches cleared${NC}"
+    actions=(
+        "install"
+        "select"
+        "update"
+        "uninstall"
+        "backup"
+        "restore"
+        "backup-history"
+        "exit"
+    )
 
-echo ""
-echo -e "${GREEN}=== Installation Complete ===${NC}"
-echo ""
-echo "Sourby has been successfully installed!"
-echo ""
-echo "Next steps:"
-echo "1. Configure environment variables in .env:"
-echo "   - APP_NAME=Sourby"
-echo "   - THEME=sourby-unix"
-echo "   - SOURBY_BILLING_ENABLED=true"
-echo "   - SOURBY_PLAYER_LIST_ENABLED=true"
-echo "   - SOURBY_CUSTOM_SORT_ENABLED=true"
-echo ""
-echo "2. Access admin panel at: https://your-domain/admin"
-echo ""
-echo "3. Configure addons:"
-echo "   - Sourby Theme: /admin/sourby"
-echo "   - Shop Settings: /admin/shop/settings"
-echo "   - Player Counter: /admin/players"
-echo ""
-echo "For more information, see SOURBY_INTEGRATION.md"
+    output "What would you like to do?"
+    output ""
+
+    for i in "${!options[@]}"; do
+        output "  [${i}]  ${options[$i]}"
+    done
+
+    output ""
+    echo -n "* Input 0-$((${#actions[@]} - 1)): "
+    read -r action
+
+    [ -z "$action" ] && output "Input is required" && continue
+
+    valid_input=("$(for ((i = 0; i <= ${#actions[@]} - 1; i += 1)); do echo "${i}"; done)")
+    if [[ ! " ${valid_input[*]} " =~ ${action} ]]; then
+        output "Invalid option. Please enter 0-$((${#actions[@]} - 1))."
+        continue
+    fi
+
+    selected="${actions[$action]}"
+
+    if [ "$selected" = "backup-history" ]; then
+        ensure_backup_dir
+        list_backups
+        continue
+    fi
+
+    if [ "$selected" = "exit" ]; then
+        output "Goodbye!"
+        exit 0
+    fi
+
+    done=true
+    execute "$selected"
+done
+
+# Cleanup
+rm -f /tmp/sourby-lib.sh
+
+exit 0
