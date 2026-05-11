@@ -307,27 +307,21 @@ install_addons() {
 
 # Install dependencies
 install_dependencies() {
-    log_info "Installing dependencies..."
+    log_info "Installing Node.js dependencies..."
     cd "$PTERODACTYL_PATH"
 
-    log_info "Installing Composer packages..."
-    if composer require --no-interaction paypal/checkout-sdk stripe/stripe-php; then
-        log_success "PHP dependencies installed"
-    else
-        log_error "Failed to install PHP dependencies"
-        log_info "Try manually: composer require paypal/checkout-sdk stripe/stripe-php"
-        exit 1
-    fi
-
-    log_info "Installing Node.js packages..."
+    log_info "Installing sortablejs for drag-drop..."
     if yarn add sortablejs; then
-        log_success "Node.js dependencies installed"
+        log_success "sortablejs installed"
     else
-        log_error "Failed to install Node.js dependencies"
-        log_info "Try manually: yarn add sortablejs"
-        exit 1
+        log_error "Failed to install sortablejs"
+        log_warning "Try manually: yarn add sortablejs"
     fi
 
+    echo ""
+    log_info "Payment SDKs (PayPal/Stripe) are optional."
+    log_warning "Install manually if needed:"
+    echo "  composer require stripe/stripe-php"
     echo ""
 }
 

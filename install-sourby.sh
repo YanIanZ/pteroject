@@ -163,13 +163,17 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}Installing dependencies...${NC}"
+echo -e "${YELLOW}Installing Node.js dependencies...${NC}"
 cd "$PTERODACTYL_PATH"
-composer require --no-interaction paypal/checkout-sdk stripe/stripe-php
 yarn add sortablejs
 echo -e "${GREEN}✓ Dependencies installed${NC}"
 
 echo ""
+echo -e "${YELLOW}Payment SDKs (PayPal/Stripe) are optional.${NC}"
+echo "Install manually if needed:"
+echo "  composer require stripe/stripe-php"
+echo ""
+
 echo -e "${YELLOW}Running migrations...${NC}"
 cd "$PTERODACTYL_PATH"
 php artisan migrate --force
