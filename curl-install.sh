@@ -9,9 +9,10 @@ export GITHUB_BASE_URL="https://raw.githubusercontent.com/YanIanZ/pteroject"
 
 LOG_PATH="/var/log/sourby-installer.log"
 
-# Download and source library
+# Download and source library (force fresh, no cache)
 echo "* Downloading Sourby installer..."
-if ! curl -sSL -o /tmp/sourby-lib.sh "$GITHUB_BASE_URL/$GITHUB_SOURCE/lib/lib.sh" 2>/dev/null; then
+rm -f /tmp/sourby-lib.sh
+if ! curl -sSL --no-cache -o /tmp/sourby-lib.sh "$GITHUB_BASE_URL/$GITHUB_SOURCE/lib/lib.sh?t=$(date +%s)" 2>/dev/null; then
     echo "ERROR: Failed to download library"
     exit 1
 fi
